@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://v3.wails.io/schemas/wails.v3.json
+version: 3
+project:
+  name: slicer
+  product_name: slicer
+  identifier: io.github.pavlith.slicer
+  version: 0.0.1
+frontend:
+  directory: frontend
+  install: [pnpm, install, --frozen-lockfile]
+  build: [pnpm, build]
+  dev: [pnpm, dev]
+  output: frontend/dist
+  bindings:
+    typescript: true
+    interfaces: true
+    output: bindings
+build:
+  output: bin

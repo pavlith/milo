@@ -5,7 +5,7 @@ Execute stages sequentially. Record status, commit reference, and verification e
 | Stage | Scope | Status | Required acceptance |
 | --- | --- | --- | --- |
 | 00 | Slicer workbench extraction | Completed | Domain-neutral web shell builds; no active Java/reverse-engineering/script loader code; reusable panes/tabs retained |
-| 01 | Go + Wails 3 host | Planned | Linux native dev/build; embedded frontend; clean start/stop; paths and minimal typed host bridge |
+| 01 | Go + Wails 3 host | Completed | Linux native dev/build; embedded frontend; clean start/stop; paths and minimal typed host bridge |
 | 02 | Seven-region workbench | Planned | All named regions; hide/resize; safe persisted layout; neutral shadcn theme |
 | 03 | Tabs/editor groups | Planned | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
 | 04 | Module lifecycle and registry | Planned | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
@@ -45,7 +45,24 @@ Baseline on `8e08277` used Node.js 26.13.0 and pnpm 10.19.0. The final test, typ
 | `pnpm preview --host 127.0.0.1 --port 4173 --strictPort` and Chrome 157 headless smoke | — | Verified all seven regions, opening and focusing tabs, keyboard palette search, pinning, pointer and keyboard reorder, bulk and explicit close, horizontal and vertical resize, collapse, reload, corrupt-state recovery, and light/dark/system modes. No client warnings or exceptions. |
 | Production artifact and request audit | — | Source, lockfile and `dist/` contained no removed domain or loader markers. The production build emitted no WASM assets. The browser ignored the old script and remote-file query parameters and made no corresponding requests. |
 
-The current editor uses one tab instance per local view. The secondary sidebar and bottom panel contain neutral empty states. New strings use English fallback in locales where a translation is unavailable. Browsers may reserve Ctrl+W for the browser tab. Stage 01 remains planned and covers the Linux Go/Wails host.
+The current editor uses one tab instance per local view. The secondary sidebar and bottom panel contain neutral empty states. New strings use English fallback in locales where a translation is unavailable. Browsers may reserve Ctrl+W for the browser tab.
+
+## Stage 01 detail — native Linux host
+
+Implementation commit subject is `feat: host Slicer in a native Wails 3 window`. The existing frontend and its updated pnpm dependencies moved to `frontend/`. Wails 3.1.0 uses GTK4 and WebKitGTK 6.0, the Wake build configuration, and an embedded production frontend. The backend resolves config and cache paths using Go's XDG-aware path functions. The workbench uses a generated TypeScript binding and a window-scoped typed event when it mounts.
+
+Verification used Ubuntu 26.10 on Linux amd64, Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Node.js 26.13.0 and pnpm 10.19.0.
+
+| Check | Result |
+| --- | --- |
+| `wails3 generate bindings -ts -i -d frontend/bindings` | Generated the host service binding and typed event definitions. |
+| `pnpm -C frontend check`, `pnpm -C frontend test`, `pnpm -C frontend build` | Zero type errors or warnings, eight passing workbench tests and a successful Vite production build. |
+| `go test ./...`, `go vet ./...` | Passed. The Core test covers Linux default paths and XDG overrides. |
+| `WAILS_EXP_USE_WAKE=1 wails3 build` | Built `bin/slicer`, an amd64 ELF linked against GTK4 and WebKitGTK 6.0. |
+| `WAILS_EXP_USE_WAKE=1 wails3 dev` and WebKit smoke | Vite served on loopback and the native window rendered the workbench. Verified the generated Go call and typed event payload, opening and closing tabs, toggling all three panes, applying light and dark styles, and selecting system mode. Ctrl+C ran the shutdown hook and exited with code 0. |
+| Production binary from a separate working directory | Embedded workbench opened with no dev server. Native accessibility actions verified tab activation and closing, visibility of all three panes, and persistence of light, dark and system preferences. Closing the window ran the service shutdown hook and exited with code 0. |
+
+GTK 4.24 emits deprecation warnings for Wails' X11 calls when compiling the dependency, and JavaScriptCore reports that it overrides an existing signal handler at startup. Closing the dev window before stopping Wake runs the service shutdown hook, but the Wake supervisor reports a backend exit and returns code 1. Stop dev with Ctrl+C in the terminal. Linux is the verified platform. Workbench preferences still use WebKit local storage. Stage 02 remains planned.
 
 ## Cross-stage acceptance
 

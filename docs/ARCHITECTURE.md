@@ -1,6 +1,15 @@
 # Target architecture
 
-Read [VISION.md](VISION.md) first. This is a target, not an inventory of current files.
+Read [VISION.md](VISION.md) first. The Stage 01 section describes the current host. The following sections describe the target platform.
+
+## Stage 01 Linux host
+
+- `main.go` starts the application. The production build embeds `frontend/dist`. Wails dev serves the workbench from a loopback Vite server.
+- `app/` composes the native window and registers the `Host` Wails service. Wails runs the service startup and shutdown hooks. Closing the last window exits the desktop application. The host logs lifecycle messages with Go `slog`.
+- `core/` resolves application config and cache paths with the standard library and follows XDG overrides on Linux. WebKit manages the workbench's current UI storage. The Go service resolves the paths at startup without creating directories.
+- The mounted workbench calls the generated `WorkbenchReady` binding. The host replies to the workbench window with the typed `slicer:host-ready` event and its application name. Generated service and event bindings live in `frontend/bindings/`.
+- Layout, tabs, shortcuts, translations and theme remain in Svelte. Versioned local storage retains UI preferences. The logger, worker, task, event and script infrastructure from the original browser application was already removed during extraction. The remaining component utilities support shadcn-svelte primitives.
+- Wails window, asset, binding and event APIs cover the host. The bundled Wails log service forwards frontend logs and is unnecessary for the host's own `slog` output. Wails key/value storage and notifications are candidates for the stages that add settings and native notifications.
 
 ## Boundaries
 
@@ -54,7 +63,7 @@ Core owns startup/shutdown, registry and platform facilities. Modules supply reu
         examples/hello-world/ # separate build/package, never linked into host
       docs/
 
-During Stage 00 keep the current root frontend paths and pnpm workflow. Stage 01 may move frontend into frontend/ once the web build is stable. Keep a single Go module for the host until a real independent SDK packaging consumer requires more. The example extension must be buildable/packageable independently; Go SDK distribution/module boundaries may be finalized then. Do not perform bulk moves merely for aesthetics.
+Stage 01 moved the existing Svelte project and pnpm lockfile into `frontend/`. Keep a single Go module for the host until an independent SDK packaging consumer requires more. The example extension must be buildable and packageable independently.
 
 ## Runtime and lifecycle
 

@@ -1,6 +1,6 @@
 # Slicer — Desktop Workbench platform
 
-Status: proposed target architecture, not current functionality. Baseline: existing Slicer frontend at commit 3fb8d07f4fcd0120ff278505ae3a8c45606133d4. The repository name stays slicer until the owner decides otherwise.
+The Linux desktop host and the extracted workbench are implemented. This documentation also describes the planned platform. See [ROADMAP.md](ROADMAP.md) for stage status and verification, and the [root README](../README.md) for build and development commands.
 
 ## Objective
 
@@ -16,7 +16,7 @@ Turn Slicer into a reusable Linux-first desktop application foundation, not a Ja
 6. [ROADMAP.md](ROADMAP.md): ordered stages and acceptance criteria.
 7. [CODEX.md](CODEX.md): execution rules and a ready-to-run Stage 00 task.
 
-These documents define target behavior. Do not describe a feature as implemented until verified. Changes to these contracts must be documented together with implementation. ROADMAP.md is the progress source of truth; all stages begin as planned. Existing README.md and application code are intentionally unchanged by the initial documentation commit.
+These documents define target behavior. Changes to these contracts must be documented together with implementation. ROADMAP.md records implemented and verified behavior.
 
 ## Core MVP definition
 
