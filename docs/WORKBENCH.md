@@ -1,32 +1,52 @@
 # Workbench UI contract
 
-## Implemented through Stage 05
+## App Shell
 
-The shell renders seven regions with one or two side-by-side editor groups. The primary sidebar, Open tab menu and local command palette open trusted editors. Each group has its own tab bar, active renderer and preview. The footer identifies the active editor in the focused group and shows its dirty state.
+The shell renders seven regions with one or two side-by-side editor groups. The Primary Sidebar, Open Tab menu and local command palette open trusted editors. Each editor group owns its tab bar, active renderer and preview. The Status Bar shows the focused editor and its dirty state.
 
-PaneForge resizes the primary and secondary sidebars, bottom Panel and editor split. Header buttons, the View menu and the palette update the same pane preferences. The activity rail can reopen the primary sidebar. Reopening a region restores its last size within the bounds in `frontend/src/lib/state.ts`. The secondary sidebar has an empty state. The bottom Panel hosts Output and Tasks. WebKit local storage holds layout and validated tab metadata. Go persists theme choice, and Mode Watcher supplies the system color preference.
+```text
+App Shell
+├── App Header
+├── App Body
+│   ├── Left Sidebar
+│   └── Horizontal group
+│       ├── Primary Sidebar
+│       ├── Resizer
+│       └── Workspace
+│           └── Vertical group
+│               ├── Main Area
+│               │   └── Horizontal group
+│               │       ├── Editor Area (optional horizontal editor split)
+│               │       ├── Resizer
+│               │       └── Secondary Sidebar
+│               ├── Resizer
+│               └── Bottom Panel
+└── Status Bar
 
-## Regions
-
-The stable layout roles are `header`, `left`, `primary`, `secondary`, `editor`, `panel` and `footer`.
-
-    +--------------------------- header --------------------------+
-    | left | primary |              editor          | secondary |
-    |      |         |        tabs / editor groups  |           |
-    |      |         +-------------- panel ---------+           |
-    +--------------------------- footer --------------------------+
+Settings Dialog
+├── Settings Sidebar
+└── Settings Content
+```
 
 | Region | Role | Behavior |
 | --- | --- | --- |
-| header | Milo mark, application menu, Command Center, layout and window controls | 36 CSS pixels. Wails owns window operations and system decorations in fallback mode. |
-| left | Activity Bar, navigation entries contributed by owners | Icon rail; selection controls primary views; keyboard accessible |
-| primary | Main navigation/views | Hide, collapse and resize |
-| secondary | Context, properties, assistant views | Hide, collapse, resize; optional by default |
-| editor | Main tab bar and content, editor groups | Always available; empty state; independent group focus |
-| panel | Bottom tabbed output/diagnostics/tasks | Hide, collapse, resize; no terminal emulator in MVP |
-| footer | Status bar, notification entry, status contributions | Left/right aligned, compact |
+| Header | Milo mark, application menu, Command Center, pane and window controls | Fixed at 36 CSS pixels. Wails owns window operations and system decorations. |
+| Left Sidebar | Activity selection, mock User Space and Settings | Fixed at 48 CSS pixels. Visible and icon-only at every window size. |
+| Primary Sidebar | Context navigation from the selected activity | Starts at 20% of the body group. Open range 12–36%. |
+| Secondary Sidebar | Contextual views | Starts collapsed. First opening uses 22% of the main group. Open range 12–36%. |
+| Editor Area | Editor tabs, editors and optional split | Always available. The split starts at 50/50 and gives each group at least 25%. |
+| Bottom Panel | Output and Tasks | Starts collapsed. First opening uses 26% of the workspace. Open range 16–60%. |
+| Status Bar | Editor status, notifications and task progress | Fixed footer. |
 
-Use PaneForge for the primary sidebar, secondary sidebar, bottom Panel and editor split. Editor area must not disappear if every extension is disabled. Persist visibility and dimensions with safe minimum/maximum bounds, restore invalid state to defaults. Header/footer may offer visibility settings later; MVP keeps essential window controls accessible. Do not force all zones to contain something. Left rail active state uses a neutral accent or indicator, not large colored icon backgrounds.
+### PaneForge integration
+
+The shadcn-svelte Resizable wrappers use PaneForge for the three nested shell groups and the editor split. Each group and pane has a stable ID. PaneForge owns sizing, pointer and keyboard resizing, and the remembered expanded size. Header, View menu, palette and activity selection use the pane's imperative API. Collapse and expand events update pressed states and make collapsed content inert. The PaneForge 1.0.2 patch records sizes when a divider collapses a pane and sends Enter through the same collapse and expand methods as the Header.
+
+Each group saves its layout and remembered expanded sizes using `autoSaveId` in the WebKit profile. The Sidebar Provider supplies CSS tokens and zero-delay tooltips. Primary width follows its PaneForge parent. [PaneForge persistence](https://paneforge.com/docs/examples/persistent-layouts)
+
+### Sidebar responsibilities
+
+The Activity Bar follows the fixed icon sidebar from `sidebar-09` and the content and footer structure in `sidebar-16`. The active Activity uses the neutral sidebar accent. An activity selection displays that activity's navigation and reopens the Primary Sidebar when it has items. Hiding the Primary Sidebar keeps the Activity Bar available. User Space is a mock guest popover. Settings opens the application dialog from the next button. [Official sidebar blocks](https://www.shadcn-svelte.com/blocks/sidebar)
 
 ## Unified Header
 
@@ -50,7 +70,7 @@ Use Svelte 5 runes for new reactive state where appropriate, TypeScript strictne
 
 An editor type declares its namespaced ID, owner, title, optional Lucide icon, lazy Svelte loader and singleton or resource behavior. A resource is a stable opaque string interpreted by its editor type. Resource registrations describe the reference and can opt in to restoring supported references. Singleton registrations can opt in to restoration. Registrations can disable preview.
 
-An editor tab has its own instance ID, owner ID, editor type ID, optional resource reference, title and icon metadata, group ID, and pinned, preview and dirty flags. Each editor group keeps an ordered list of instances and its own active tab. The Workbench also tracks the focused group. The manager deduplicates resource opens by type and reference within the target group. **Open New Instance** opens an independent instance of a resource. Singleton editors such as Settings focus their existing instance across groups.
+An editor tab has its own instance ID, owner ID, editor type ID, optional resource reference, title and icon metadata, group ID, and pinned, preview and dirty flags. Each editor group keeps an ordered list of instances and its own active tab. The Workbench also tracks the focused group. The manager deduplicates resource opens by type and reference within the target group. **Open New Instance** opens an independent instance of a resource. Singleton editors focus their existing instance across groups.
 
 The registry rejects duplicate IDs and validates owner namespaces. Registration returns a disposer and the registry supports removing all registrations for an owner. Renderer loads are shared by a live registration. The group mounts only its active renderer and shows loading, unavailable and retry states as appropriate. Editor sessions are keyed by tab instance and remain available across renderer unmounts, focus changes and group moves.
 
@@ -83,21 +103,25 @@ The shortcut handler respects events already handled by the focused control. Bro
 
 ### Workspace storage
 
-The `milo.workbench` key stores version 2, pane preferences, and an `editor` object with `focusedGroupId`, `leftSize` and ordered `groups`. Groups store IDs, active tab IDs and ordered tabs. Persisted tab fields are `id`, `ownerId`, `editorTypeId`, optional `resource`, `pinned` and `preview`. The registry supplies presentation metadata on restore. Corruption, duplicate IDs, missing registrations and unavailable or unsupported resources are handled during validation. Version 1 tabs migrate from legacy view IDs to new instance IDs while preserving pins, ordering, focus and pane preferences.
+The `milo.workbench` key stores version 3 and an `editor` object with `focusedGroupId` and ordered `groups`. Groups store IDs, active tab IDs and ordered tabs. Persisted tab fields are `id`, `ownerId`, `editorTypeId`, optional `resource`, `pinned` and `preview`. The registry supplies presentation metadata on restore. Validation skips duplicate IDs, missing editor registrations and unavailable resources. Version 1 tabs migrate from view IDs to instance IDs while preserving pins, order and focus. Initial PaneForge layouts import compatible versions 1 and 2 pane sizes and visibility. A legacy split size remains available if the split has yet to mount.
 
-The snapshot contains metadata only. Dirty state, draft text, saved demo text, renderer data and close history stay in memory. Sample and Sample B exercise the same resource type with two stable references. Save updates the in-session resource and new instances read that saved text. Restart restores the tab metadata and loads the built-in sample text. The Settings editor supersedes Appearance. Old Appearance tab metadata restores as Settings. A compatible `milo.state.mode` theme transfers to Settings once, preserving any existing Go override.
+The snapshot contains metadata only. Dirty state, draft text, saved demo text, renderer data and close history stay in memory. Sample and Sample B exercise the same resource type with two stable references. Save updates the in-session resource and new instances read that saved text. Restart restores the tab metadata and loads the built-in sample text. Legacy Appearance and Settings tab entries are dropped. Preferences remain available in the Settings dialog. A compatible `milo.state.mode` theme transfers to Settings once, preserving any existing Go override.
 
 ## System modules
 
-- **Settings** opens as a singleton editor from Edit, the primary sidebar, Open tab or the palette. General, Appearance and Workbench each have searchable preferences, per-setting reset and confirmed category reset. Theme, notification toasts, editor status and the minimum capture level take effect across the Workbench.
+- **Settings** opens as a modal from the Activity Bar, Edit menu or palette. The `sidebar-13` layout uses a fixed category sidebar and independently scrollable settings content. Categories come from the existing Settings projection. Search matches across categories. Each preference can be reset individually, and resetting a category asks for confirmation. Theme, notification toasts, editor status and the minimum capture level take effect across the Workbench. [Official settings block](https://www.shadcn-svelte.com/view/sidebar-13)
 - **Output** filters retained logs by minimum visible severity, owner and text. Select rows to copy specific records or copy all matching rows. Auto-scroll and clear controls operate on the Output view.
 - **Tasks** shows active progress, supported cancellations and recent outcomes. If any active operation has indeterminate progress, the footer shows an indeterminate aggregate. Otherwise it shows the average across active tasks. Clicking the indicator opens Tasks. The Cancel control signals Go and shows Cancelling until execution finishes.
 - **Notifications** opens from the footer bell or View. The footer count tracks unread entries. The center marks one or all as read, dismisses individual entries, and clears the in-app history. Toasts and the center use the same Go projection.
 
-Output and Tasks share the existing bottom Panel visibility and dimensions. The selected tab is session UI state. Settings is owned by the Editor Registry, and system menu entries use the owner-scoped Menu Registry and local command adapter. [Module APIs](MODULES.md#implemented-services)
+Output and Tasks use shadcn-svelte Tabs. The header has the tab list on the left and the active view's actions on the right. The active content fills the width below the header and scrolls within the pane. Collapsing the pane keeps the selected tab, filters and running tasks available. System menu entries use the owner-scoped Menu Registry and local command adapter. [Module APIs](MODULES.md#implemented-services)
+
+## Activity contributions
+
+Trusted Workbench code can use `activityRegistry.register` to supply an Activity Bar entry and its Primary Sidebar navigation. A registration includes an owner, a namespaced ID, title, optional icon and navigation items with actions. The registry publishes live changes and supports disposal and owner cleanup. The built-ins register Views with their editor choices and Tasks with its existing panel action. The Menu Registry and Editor Registry retain their existing contracts. [Extension contributions](EXTENSIONS.md)
 
 ## Planned contributions
 
 Stage 07 generalizes owner-scoped registration for menu entries, activity entries, views, editor types, header actions, panel views, footer status items and command/search registrations. Stable namespaced IDs, order, region, title and icon are metadata. Every registration returns a disposer, rejects duplicates and is removed when the owner stops. Use one shared registry contract for modules and extensions; trusted module components can lazy-import local Svelte files, extension UI goes through the isolated rendering mechanism described in [EXTENSIONS.md](EXTENSIONS.md).
 
-No direct import from extensions into `frontend/src/app.svelte` or layout components. Empty regions collapse gracefully. A test contribution should prove the shell can accept unknown types without editing the shell.
+The extension host will route external declarations through the shared registry. The shell reads the resulting registrations and keeps the editor area available when there are no contributions.

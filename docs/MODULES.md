@@ -4,7 +4,7 @@ Core MVP has seven trusted host modules. Stage 05 ships four system modules with
 
 | Module | Status | Workbench contributions |
 | --- | --- | --- |
-| Settings | Available | Singleton Settings editor |
+| Settings | Available | Settings dialog |
 | Logger | Available | Output tab in the bottom Panel |
 | Notify | Available | Toasts, Footer badge and Notification Center |
 | Task | Available | Tasks tab in the bottom Panel and Footer progress |
@@ -39,7 +39,7 @@ Settings binds schemas and observers to scopes. Cleanup removes live registratio
 
 ### Settings
 
-`Register(scope, owner, schemas...)` validates a batch of owner-namespaced schemas. Supported kinds are enumerated choices and booleans. A schema declares an ID, category, label, description, default and the allowed choices when applicable. `Get` and `List` return copies of effective values and override flags. `Set`, `Reset` and `ResetCategory` check ownership, validate values and commit before publishing changes. Trusted consumers can use `Observe(scope, id, fn)`. The observer receives the initial and subsequent values in order. It must return promptly and avoid reentering Settings. The trusted editor can write the Settings and Logger schemas.
+`Register(scope, owner, schemas...)` validates a batch of owner-namespaced schemas. Supported kinds are enumerated choices and booleans. A schema declares an ID, category, label, description, default and the allowed choices when applicable. `Get` and `List` return copies of effective values and override flags. `Set`, `Reset` and `ResetCategory` check ownership, validate values and commit before publishing changes. Trusted consumers can use `Observe(scope, id, fn)`. The observer receives the initial and subsequent values in order. It must return promptly and avoid reentering Settings. The trusted Settings dialog can write the Settings and Logger schemas.
 
 Preferences live in `${XDG_CONFIG_HOME:-$HOME/.config}/milo-platform/settings.json`. The version 1 document holds overrides and the legacy theme migration marker.
 

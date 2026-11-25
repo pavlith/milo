@@ -55,6 +55,10 @@ The Stage 02 menu registry runs inside the trusted Workbench. Stage 06 will conn
 
 The extension host must derive ownership from the authenticated session, validate menu metadata and allowed targets, and remove all owner registrations on deactivation or failed activation. The host must authorize action references at registration and recheck action availability, ownership or allowed delegation, permissions and arguments at dispatch. Visibility, enablement and a menu click provide UI context. Authorization comes from the session's grants and the action policy. The SDK will submit declarative contributions through the host bridge. Privileged action handlers and arbitrary UI callbacks stay in trusted code.
 
+## Activity and settings contributions
+
+The trusted Workbench exposes a local activity registry for owner-scoped icon entries and contextual navigation actions. The activity rail and Primary Sidebar render from this registry. The planned shared Contribution Registry will adapt external activity and view declarations to the trusted shell. Settings renders categories supplied by the existing authorized Go Settings projection. The scope of that projection is controlled by the native host. [Workbench activity contributions](WORKBENCH.md#activity-contributions) · [Settings service](MODULES.md#settings)
+
 ## Editor contributions
 
 Stage 03 has a typed Editor Registry for trusted local Svelte registrations. A type declares its owner-scoped ID, default title and optional icon, lazy loader and singleton or resource behavior. Resource providers describe their opaque references and explicitly enable restoration where supported. Optional editor sessions retain per-instance state and supply save, discard and disposal operations. The Workbench owns grouping, tabs and close confirmation. [Workbench editor contracts](WORKBENCH.md#tab-and-editor-model)

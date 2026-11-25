@@ -1,6 +1,6 @@
 # Milo
 
-Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The native Workbench includes up to two editor groups and four built-in modules. Settings manages durable preferences, Output shows structured logs, Notifications keeps an in-app inbox, and Tasks tracks cancellable Go operations. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
+Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The native Workbench includes up to two editor groups and four built-in modules. The Settings dialog manages durable preferences, Output shows structured logs, Notifications keeps an in-app inbox, and Tasks tracks cancellable Go operations. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
 
 ## Prerequisites
 
@@ -24,11 +24,11 @@ WAILS_EXP_USE_WAKE=1 wails3 build
 
 Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
-The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Settings, Sample and Sample B. The sidebar opens samples in preview. Double-click the tab to keep it open, or use **Shift+F10** on its label for pinning, reordering, opening a new instance, moving between groups and closing. Editing a sample creates a draft. Save and discard operate on the draft during the current session. Closing with unsaved changes prompts for a decision, including when quitting Milo.
+Select **Views** in the Activity Bar to show Welcome, Sample and Sample B in the Primary Sidebar. They are also available from **Open tab** and **Ctrl+Shift+P**. The sidebar opens samples in preview. Double-click the tab to keep it open, or use **Shift+F10** on its label for pinning, reordering, opening a new instance, moving between groups and closing. Editing a sample creates a draft. Save and discard operate on the draft during the current session. Closing with unsaved changes prompts for a decision, including when quitting Milo.
 
 Use **View → Split Editor Right** or **Ctrl+\** to split. Drag tabs between groups and move the divider to resize them. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs. **Ctrl+W** closes the active tab and **Ctrl+Shift+T** reopens a closed one. Pane visibility and tab layout are restored from the WebKit profile. Go stores the theme and other durable preferences in `${XDG_CONFIG_HOME:-$HOME/.config}/milo-platform/settings.json`. Sample text is kept in memory.
 
-Use **Edit → Settings** to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
+Open **Settings** from the Activity Bar, **Edit → Settings** or the command palette to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
 
 ## Generate and verify
 
