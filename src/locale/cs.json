@@ -1,0 +1,22 @@
+{
+    "tab.welcome": "Vítejte",
+    "pane.loading": "Načítání...",
+    "pane.header.menu.close.self": "Zavřít",
+    "pane.header.menu.close.others": "Zavřít ostatní",
+    "pane.header.menu.close.right": "Zavřít vpravo",
+    "pane.header.menu.close.all": "Zavřít vše",
+    "pane.header.menu.pin": "Připnout kartu",
+    "pane.header.menu.unpin": "Odepnout kartu",
+    "editor.search.placeholder": "Najít text...",
+    "editor.search.case-sensitive": "Citlivé na velikost písmen",
+    "editor.search.whole-word": "Celé slovo",
+    "editor.search.regex": "Regulární výraz",
+    "editor.search.next": "Další shoda",
+    "editor.search.previous": "Předchozí shoda",
+    "editor.search.close": "Zavřít vyhledávání",
+    "editor.search.matches": "{0}/{1}",
+    "editor.search.no-matches": "0 shod",
+    "modal.pin": "Připnout",
+    "modal.unpin": "Odepnout",
+    "modal.close": "Zavřít"
+}

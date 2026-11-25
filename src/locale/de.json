@@ -1,0 +1,22 @@
+{
+    "tab.welcome": "Willkommen",
+    "pane.loading": "Wird geladen...",
+    "pane.header.menu.close.self": "Schließen",
+    "pane.header.menu.close.others": "Andere schließen",
+    "pane.header.menu.close.right": "Rechts schließen",
+    "pane.header.menu.close.all": "Alle schließen",
+    "pane.header.menu.pin": "Tab anheften",
+    "pane.header.menu.unpin": "Tab lösen",
+    "editor.search.placeholder": "Text suchen...",
+    "editor.search.case-sensitive": "Groß-/Kleinschreibung",
+    "editor.search.whole-word": "Ganzes Wort",
+    "editor.search.regex": "Regulärer Ausdruck",
+    "editor.search.next": "Nächste Übereinstimmung",
+    "editor.search.previous": "Vorherige Übereinstimmung",
+    "editor.search.close": "Suche schließen",
+    "editor.search.matches": "{0}/{1}",
+    "editor.search.no-matches": "0 Ergebnisse",
+    "modal.pin": "Anheften",
+    "modal.unpin": "Lösen",
+    "modal.close": "Schließen"
+}

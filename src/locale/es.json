@@ -1,0 +1,22 @@
+{
+    "tab.welcome": "Bienvenido",
+    "pane.loading": "Cargando...",
+    "pane.header.menu.close.self": "Cerrar",
+    "pane.header.menu.close.others": "Cerrar las demás",
+    "pane.header.menu.close.right": "Cerca a la derecha",
+    "pane.header.menu.close.all": "Cerrar todas",
+    "pane.header.menu.pin": "Anclar pestaña",
+    "pane.header.menu.unpin": "Desanclar pestaña",
+    "editor.search.placeholder": "Buscar texto...",
+    "editor.search.case-sensitive": "Distinguir mayúsculas y minúsculas",
+    "editor.search.whole-word": "Palabra completa",
+    "editor.search.regex": "Expresión regular",
+    "editor.search.next": "Siguiente coincidencia",
+    "editor.search.previous": "Coincidencia anterior",
+    "editor.search.close": "Cerrar la búsqueda",
+    "editor.search.matches": "{0}/{1}",
+    "editor.search.no-matches": "0 resultados",
+    "modal.pin": "Anclar",
+    "modal.unpin": "Desanclar",
+    "modal.close": "Cerrar"
+}
