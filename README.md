@@ -42,7 +42,7 @@ The generated bindings are checked in for frontend-only checks. Regenerate them 
 
 ## Repository and license
 
-This checkout continues the Slicer source project at `github.com/pavlith/slicer`. The separate `github.com/pavlith/milo` mail client is the future Mail extension donor. This platform uses the provisional checkout-local Go module path `milo.local/platform`. Choosing a public Go namespace and canonical repository URL is a separate decision before publishing Go modules or SDK packages.
+Milo is hosted at `github.com/pavlith/milo`. Its Git history starts with the Stage 00 Workbench extraction from Slicer, whose earlier history remains at `github.com/pavlith/slicer`. The platform uses the provisional checkout-local Go module path `milo.local/platform`. A public Go namespace remains to be chosen before publishing Go modules or SDK packages.
 
 Milo is licensed under the [MIT License](./LICENSE). The retained editor theme credits `@uiw/codemirror-theme-github`. [Editor theme source](./frontend/src/lib/components/editor/theme.ts)
 

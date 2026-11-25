@@ -23,9 +23,9 @@ Stages 00–10, including 01.1, make up Core MVP. Its mandatory modules are `set
 
 ## Stage 00 verification
 
-Commit `5e467cb` extracted the domain-neutral shell from Slicer. It retained reusable pane resizing, one editor group with three lazy local views, tab metadata and theme persistence, shadcn-svelte primitives and reusable CodeMirror components. The extraction removed Java analysis, decompilers, JDK and workspace search, remote imports and sharing, and the script runtime and its SDK.
+Commit `013444b` extracted the domain-neutral shell from Slicer and is the first commit in Milo. It retained reusable pane resizing, one editor group with three lazy local views, tab metadata and theme persistence, shadcn-svelte primitives and reusable CodeMirror components. The extraction removed Java analysis, decompilers, JDK and workspace search, remote imports and sharing, and the script runtime and its SDK.
 
-Baseline on `8e08277` used Node.js 26.13.0 and pnpm 10.19.0. The final test, type-check, and build used the pinned Node.js 22.19.0 with pnpm 10.19.0.
+The baseline in the original Slicer repository used Node.js 26.13.0 and pnpm 10.19.0. The final test, type-check, and build used the pinned Node.js 22.19.0 with pnpm 10.19.0. [Slicer baseline `8e08277`](https://github.com/pavlith/slicer/commit/8e082774fddb293859c0f3ae7ccb6c07bb6bf5a5)
 
 | Check | Baseline | Stage 00 result |
 | --- | --- | --- |
@@ -40,7 +40,7 @@ The Stage 00 editor used one tab instance per local view. The secondary sidebar 
 
 ## Stage 01 detail — native Linux host
 
-Commit `f2810e1` added the native window under the historical Slicer name. The existing frontend and its updated pnpm dependencies moved to `frontend/`. Wails 3.1.0 uses GTK4 and WebKitGTK 6.0, the Wake build configuration, and an embedded production frontend. The backend resolves config and cache paths using Go's XDG-aware path functions. The workbench uses a generated TypeScript binding and a window-scoped typed event when it mounts.
+Commit `5703287` added the native window under the historical Slicer name. The existing frontend and its updated pnpm dependencies moved to `frontend/`. Wails 3.1.0 uses GTK4 and WebKitGTK 6.0, the Wake build configuration, and an embedded production frontend. The backend resolves config and cache paths using Go's XDG-aware path functions. The workbench uses a generated TypeScript binding and a window-scoped typed event when it mounts.
 
 Verification used Ubuntu 26.10 on Linux amd64, Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Node.js 26.13.0 and pnpm 10.19.0.
 
@@ -57,7 +57,7 @@ GTK 4.24 emits deprecation warnings for Wails' X11 calls when compiling the depe
 
 ## Stage 01.1 verification
 
-**Completed.** Commit `082c200` rebrands the platform as Milo. The GTK ID and XDG paths keep the platform's profile separate from the mail-client donor. Milo starts with a fresh WebKit profile. Stage 01 stored only local Workbench preferences, so this stage did not add a profile migration. The public Go namespace and canonical platform repository URL remain open. [Repository identity](../README.md#repository-and-license)
+**Completed.** Commit `2168136` rebrands the platform as Milo. The GTK ID and XDG paths keep the platform's profile separate from the mail-client donor. Milo starts with a fresh WebKit profile. Stage 01 stored only local Workbench preferences, so this stage did not add a profile migration. The public Go namespace remains open. [Repository identity](../README.md#repository-and-license)
 
 Verified on Ubuntu 26.10 amd64 with Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Wails 3.1.0, Node.js 26.13.0 and pnpm 10.19.0.
 
@@ -70,7 +70,7 @@ Verified on Ubuntu 26.10 amd64 with Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Wai
 | `WAILS_EXP_USE_WAKE=1 wails3 build` | Produced `bin/milo` and the Wake artifact `milo`. The amd64 ELF links to GTK4 and WebKitGTK 6.0. |
 | `desktop-file-validate build/linux/io.github.pavlith.milo.platform.desktop` | Passed. |
 | Native production smoke with an isolated XDG profile and separate working directory | The embedded Workbench rendered in the Milo window and the readiness binding reached Go. Verified the GTK-scoped WebKit data and cache paths, opening and closing tabs, toggling three panes, and persistence of light, dark and system preferences. Closing the window ran the shutdown hook and exited with code 0. |
-| Repository-wide case-insensitive identifier search | Remaining Slicer references are source attribution, the current source repository URL and historical roadmap evidence. Application code, build configuration and generated bindings use Milo identifiers. |
+| Repository-wide case-insensitive identifier search | Remaining Slicer references are source attribution, the original Slicer repository URL and historical roadmap evidence. Application code, build configuration and generated bindings use Milo identifiers. |
 
 Distribution packaging is outside this verification. JavaScriptCore still reports the pre-existing signal handler override during startup. The native smoke passed and exited cleanly.
 
