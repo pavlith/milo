@@ -1,6 +1,6 @@
 # Milo
 
-Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The current build includes a native window and a domain-neutral workbench. System modules, the public SDK and independent extensions are planned, including future Mail, Contacts and Calendar extensions. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
+Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The current build includes a native window, the Workbench, and a lazy editor registry with up to two editor groups. System modules, the public SDK and independent extensions are planned, including future Mail, Contacts and Calendar extensions. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
 
 ## Prerequisites
 
@@ -24,7 +24,11 @@ WAILS_EXP_USE_WAKE=1 wails3 build
 
 Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
-The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Sample or Appearance. The tab context menu (**Shift+F10** on a focused tab) offers pin, reorder and close actions. Use the Header buttons or the View menu to toggle panes, and drag the dividers to resize them. Appearance switches between light, dark and system modes. The new Milo WebKit profile starts with defaults. Layout, tabs and appearance changes persist in that profile. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations.
+The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Appearance, Sample and Sample B. The sidebar opens samples in preview. Double-click the tab to keep it open, or use **Shift+F10** on its label for pinning, reordering, opening a new instance, moving between groups and closing. Editing a sample creates a draft. Save and discard operate on the draft during the current session. Closing with unsaved changes prompts for a decision, including when quitting Milo.
+
+Use **View → Split Editor Right** or **Ctrl+\** to split. Drag tabs between groups and move the divider to resize them. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs. **Ctrl+W** closes the active tab and **Ctrl+Shift+T** reopens a closed one. Pane visibility, tab layout and theme are restored from the WebKit profile. Sample text is kept in memory.
+
+Use the Header or View menu to toggle panes. Appearance switches between light, dark and system modes. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
 
 ## Generate and verify
 

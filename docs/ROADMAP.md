@@ -8,7 +8,7 @@ The table records shipped stages and the acceptance criteria for planned work. S
 | 01 | Go + Wails 3 host | Completed | Linux native dev/build; embedded frontend; clean start/stop; paths and minimal typed host bridge |
 | 01.1 | Milo rebrand and architecture consolidation | Completed | Milo Linux build and native smoke; aligned architecture, documentation and Stage 05 Task contract |
 | 02 | Seven-region Workbench and unified Header | Completed | Seven regions, native Linux window controls with system fallback, independent persisted panes, owner-scoped menu contributions and neutral shadcn theme |
-| 03 | Tabs/editor groups | Planned | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
+| 03 | Tabs/editor groups | Completed | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
 | 04 | Module lifecycle and registry | Planned | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
 | 05 | Settings, Notify, Logger & Task | Planned | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
 | 06 | action, search, palette | Planned | Commands/shortcuts, context conflicts, provider cancellation and empty/error states |
@@ -91,6 +91,23 @@ Verified on Ubuntu 26.10 amd64 with Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Wai
 | Native production smoke on X11 with Xvfb and Openbox | Verified drag from empty Header space, Command Center exclusion from drag, edge resize, double-click maximize and restore, reactive icons after window manager actions, and minimize. Verified system decorations and close with `MILO_NATIVE_TITLEBAR=1`. After restart with the prior XDG profile, verified the active tab and theme, then quit cleanly using File → Quit Milo from the keyboard. |
 
 Pointer drag and resize were verified on X11. Wayland pointer behavior and other platforms were outside the smoke coverage. Wails 3.1 leaves the GTK frame title empty in frameless mode. Launch with `MILO_NATIVE_TITLEBAR=1` on Linux for system decorations. GTK's Wails X11 deprecation warnings and the JavaScriptCore signal handler message also appeared in the Stage 01 environment.
+
+## Stage 03 verification
+
+Stage 03 adds the typed Editor Registry, independent editor instances and up to two resizable groups. One dirty-close lifecycle covers tabs, groups, owner cleanup and native close or quit. Workbench storage version 2 migrates version 1, restores supported resources and keeps sample content in memory. [Workbench editor contracts](WORKBENCH.md#tab-and-editor-model)
+
+Verified on Ubuntu 26.10 amd64 with Go 1.27.3, Wails 3.1.0, GTK 4.24.1, WebKitGTK 2.52.6, Node.js 26.13.0, pnpm 10.19.0 and Chrome 157.
+
+| Check | Result |
+| --- | --- |
+| `pnpm -C frontend test` | 23 tests passed. Coverage includes tab identity, singleton and resource behavior, previews, dirty close, save failure and cancellation, pinned tabs, groups, moves, history, registry ownership, unavailable renderers and persistence. |
+| `pnpm -C frontend check`, `pnpm -C frontend build` | Passed with zero frontend errors or warnings. Welcome, Appearance and Sample were emitted as lazy renderer chunks. |
+| `go test ./...`, `go vet ./...` | Passed. Host tests cover startup close, pending request cancellation and rejection of stale decisions. |
+| `WAILS_EXP_USE_WAKE=1 wails3 build` | Generated the typed close event and binding and built the Linux amd64 binary with the embedded frontend. |
+| Chrome headless on the production frontend | Verified the seven regions, lazy renderer loading, preview replacement and promotion, resource duplicates, shortcuts and palette, dirty tab moves by drag and keyboard, direct Save and Discard, pointer and keyboard split resizing, group close confirmation, reload, v1 migration, corrupt storage recovery and all three theme modes. No client warnings or exceptions. |
+| Native production smoke on X11 with Xvfb and Openbox | Launched from a separate working directory with an isolated XDG profile. Cancel preserved the sample draft when closing via the custom window control, File → Quit and the window manager's Alt+F4 with system decorations. Save and Discard each allowed a clean host shutdown. Restart restored the sample tab. |
+
+Sample text and recent close history live in the current session. Layout and supported tab references survive restart. The split is horizontal and bounded to two groups. Browser-reserved shortcuts depend on the browser. Linux X11 was the native verification target for this stage. The isolated X11 smoke reported Mesa's DRI3 warning and the pre-existing JavaScriptCore signal handler message.
 
 ## Stage 05 acceptance — Settings, Notify, Logger & Task
 

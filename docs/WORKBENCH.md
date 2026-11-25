@@ -1,8 +1,10 @@
 # Workbench UI contract
 
-## Implemented through Stage 02
+## Implemented through Stage 03
 
-The native shell renders all seven regions with one editor group and three lazy-loaded local views. The primary sidebar lists those views, and a local command palette and tab menus open, focus, close, pin and reorder tabs. PaneForge resizes the primary and secondary sidebars and the bottom Panel. Header buttons, the View menu and the local palette read and update the same pane preferences. The activity rail stays accessible when primary is hidden and can reopen it. Reopening a region restores its last size within the bounds in `frontend/src/lib/state.ts`. The editor keeps a minimum width and height. The secondary sidebar and bottom Panel render empty states, and the footer shows the active view. WebKit local storage holds versioned layout and tab metadata, and Mode Watcher persists theme choice. The remaining editor and contribution contracts appear below.
+The shell renders seven regions with one or two side-by-side editor groups. The primary sidebar, Open tab menu and local command palette open trusted editors. Each group has its own tab bar, active renderer and preview. The footer identifies the active editor in the focused group and shows its dirty state.
+
+PaneForge resizes the primary and secondary sidebars, bottom Panel and editor split. Header buttons, the View menu and the palette update the same pane preferences. The activity rail can reopen the primary sidebar. Reopening a region restores its last size within the bounds in `frontend/src/lib/state.ts`. The secondary sidebar and bottom Panel render empty states. WebKit local storage holds layout and validated tab metadata, and Mode Watcher persists theme choice.
 
 ## Regions
 
@@ -24,13 +26,13 @@ The stable layout roles are `header`, `left`, `primary`, `secondary`, `editor`, 
 | panel | Bottom tabbed output/diagnostics/tasks | Hide, collapse, resize; no terminal emulator in MVP |
 | footer | Status bar, notification entry, status contributions | Left/right aligned, compact |
 
-Use PaneForge for primary/secondary/panel. Editor area must not disappear if every extension is disabled. Persist visibility and dimensions with safe minimum/maximum bounds, restore invalid state to defaults. Header/footer may offer visibility settings later; MVP keeps essential window controls accessible. Do not force all zones to contain something. Left rail active state uses a neutral accent or indicator, not large colored icon backgrounds.
+Use PaneForge for the primary sidebar, secondary sidebar, bottom Panel and editor split. Editor area must not disappear if every extension is disabled. Persist visibility and dimensions with safe minimum/maximum bounds, restore invalid state to defaults. Header/footer may offer visibility settings later; MVP keeps essential window controls accessible. Do not force all zones to contain something. Left rail active state uses a neutral accent or indicator, not large colored icon backgrounds.
 
 ## Unified Header
 
 Milo uses Wails 3.1 frameless mode on Linux. Empty Header space uses Wails drag regions, and the menu, Command Center and buttons opt out of dragging. A double-click on empty Header space toggles maximize/restore. The window buttons call the Wails runtime for minimize, maximize/restore and close. The maximize button reads the initial native state and follows Wails window events, including changes from the window manager. Wails handles edge resize and the host sets a minimum window size of 720 × 480. Launch with `MILO_NATIVE_TITLEBAR=1` to use system decorations on Linux. Other platforms use system decorations by default. The Workbench Header stays available with system decorations and in browser previews. [Wails frameless windows](https://v3.wails.io/features/windows/frameless/)
 
-The Command Center opens the existing local palette and displays its shortcut. Stage 06 adds the Action and Search modules and connects them to the palette. The current File menu opens the palette or quits in the native app. Edit opens Appearance, View controls the three panes and Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
+The Command Center opens the existing local palette and displays its shortcut. Stage 06 adds the Action and Search modules and connects them to the palette. File opens the palette and can quit the native app. Edit opens Appearance. View controls the three panes and exposes editor operations, including split, navigation, focus and close. Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
 
 ## Menu Registry
 
@@ -46,39 +48,50 @@ Use Svelte 5 runes for new reactive state where appropriate, TypeScript strictne
 
 ## Tab and editor model
 
-Proposed contract (illustrative TypeScript, refine at Stage 03):
+An editor type declares its namespaced ID, owner, title, optional Lucide icon, lazy Svelte loader and singleton or resource behavior. A resource is a stable opaque string interpreted by its editor type. Resource registrations describe the reference and can opt in to restoring supported references. Singleton registrations can opt in to restoration. Registrations can disable preview.
 
-    interface EditorTab {
-      id: string;          // unique instance
-      ownerId: string;     // module/extension
-      editorType: string;  // registered contribution ID
-      resource?: string;   // opaque stable owner-scoped reference
-      title: string;
-      groupId: string;
-      pinned: boolean;
-      preview: boolean;
-      dirty: boolean;
-    }
+An editor tab has its own instance ID, owner ID, editor type ID, optional resource reference, title and icon metadata, group ID, and pinned, preview and dirty flags. Each editor group keeps an ordered list of instances and its own active tab. The Workbench also tracks the focused group. The manager deduplicates resource opens by type and reference within the target group. **Open New Instance** opens an independent instance of a resource. Singleton editors such as Appearance focus their existing instance across groups.
 
-    interface EditorGroup {
-      id: string;
-      tabIds: string[];
-      activeTabId: string | null;
-    }
+The registry rejects duplicate IDs and validates owner namespaces. Registration returns a disposer and the registry supports removing all registrations for an owner. Renderer loads are shared by a live registration. The group mounts only its active renderer and shows loading, unavailable and retry states as appropriate. Editor sessions are keyed by tab instance and remain available across renderer unmounts, focus changes and group moves.
 
-Registry resolves editor types to renderers; no switch statement on extension identities in the shell. Core knows opaque resource references, not mail IDs. Stable resource identity plus type and group support open-or-focus deduplication; an explicit new instance may be requested. Dirty state is supplied by the owner. Never close dirty content silently, including close-all, disable/uninstall or shutdown. Pinned tabs are protected from bulk close but can be explicitly closed.
+### Tab operations and previews
 
-MVP tab operations: open/focus, close, close others/right/all, pin/unpin, reorder, preview replacement, promote preview on double click or edit, next/previous, reopen closed where resolvable. One preview per group, never replace a pinned or dirty tab. On close select a predictable adjacent tab. Handle unavailable owner/renderer with a safe placeholder and close/retry actions. Preserve scroll/form state explicitly where needed; mount active view lazily. Do not persist rendered HTML or sensitive resource data.
+The primary sidebar opens each sample in preview. The Open tab menu and palette open permanent tabs. Each group has at most one preview. Opening another preview replaces that eligible tab in place. The preview label is italicized. Double-click, **Keep Open**, editing, pinning or opening the resource permanently promotes it. Dirty and pinned tabs stay open when a new preview replaces an eligible clean preview.
 
-Start with one group; add a bounded horizontal split with per-group focus and move tab across groups at Stage 03. Arbitrary recursive docking is later. Serialize layout and restorable tabs by ID/resource/version; skip missing providers or show a placeholder rather than crashing. Restore only after registry is ready. Persist non-secret metadata and validate all restored references.
+Closing an active tab prefers the previous remaining tab and then the next at the start. Close Others, Close to the Right and Close All protect pinned tabs. Explicitly closing a pinned tab is supported. Pinned tabs stay at the front when reordered. Reopen keeps up to 20 recently closed entries in memory, skips unavailable editors and restores the tab in the focused group. Automatic preview replacements do not enter the history.
 
-Keyboard defaults: Ctrl+Tab/Shift+Ctrl+Tab next/previous; Ctrl+W closes focused tab (not window); Ctrl+Shift+T reopens; Ctrl+Shift+P opens command palette; Ctrl+P opens quick search. Input/editor shortcuts take precedence where appropriate. Accessible drag-and-drop alternatives and context menus are required. Do not globally suppress browser/native context menus or override text editing shortcuts without a concrete need.
+### Dirty state and close
+
+An editor type can create a per-instance session with a state change callback and optional `save`, `discard` and `dispose` operations. Renderers receive the session and the manager-backed save and discard operations. The session reports dirty state on edits. A provider returning `true` completes save or discard. A failed operation, cancellation or a new edit that arrives during an asynchronous operation keeps the editor open. Disposal releases the session after closing or replacing a clean preview.
+
+One shadcn-svelte Alert Dialog handles individual, bulk, group, owner and application close decisions. Cancel leaves the requested tabs open. For bulk closes the manager collects decisions before performing them, then runs saves before discards and removes tabs once operations succeed. Group close preserves pinned tabs by moving them with their sessions to the remaining group. Quit checks all groups, including inactive and pinned tabs. The Go host uses Wails 3.1 `RegisterHook` on `WindowClosing` and `ShouldQuit` to relay the request to the same manager. The browser preview uses the browser's reload and close confirmation while dirty. [Wails window events](https://v3.wails.io/features/windows/events/)
+
+### Groups and keyboard
+
+**Split Editor Right** creates or focuses a right group and opens the current resource there as a separate instance when possible. Singleton tabs can be moved to the right group. Drag tabs along or between the tab bars, or use the context menu for keyboard-accessible reorder and move actions. Moving preserves identity, pins and drafts. A moved preview becomes permanent if the destination already has a preview. The split resizer supports pointer and keyboard input. **Close Editor Group** returns to a single group. With one group, closing its last tab leaves a usable empty editor area.
+
+| Shortcut | Operation |
+| --- | --- |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab in the focused group |
+| Ctrl+W | Close the focused group's active tab |
+| Ctrl+Shift+T | Reopen the most recently closed tab |
+| Ctrl+Backslash | Split Editor Right |
+| Ctrl+Shift+P | Open the local command palette |
+| Shift+F10 on a tab | Open its context menu |
+
+The shortcut handler respects events already handled by the focused control. Browsers may reserve tab and window shortcuts. **Focus Other Editor Group**, **Move to Other Editor Group** and **Close Editor Group** are also available in the menus and palette.
+
+### Workspace storage
+
+The `milo.workbench` key stores version 2, pane preferences, and an `editor` object with `focusedGroupId`, `leftSize` and ordered `groups`. Groups store IDs, active tab IDs and ordered tabs. Persisted tab fields are `id`, `ownerId`, `editorTypeId`, optional `resource`, `pinned` and `preview`. The registry supplies presentation metadata on restore. Corruption, duplicate IDs, missing registrations and unavailable or unsupported resources are handled during validation. Version 1 tabs migrate from legacy view IDs to new instance IDs while preserving pins, ordering, focus and pane preferences.
+
+The snapshot contains metadata only. Dirty state, draft text, saved demo text, renderer data and close history stay in memory. Sample and Sample B exercise the same resource type with two stable references. Save updates the in-session resource and new instances read that saved text. Restart restores the tab metadata and loads the built-in sample text. Mode Watcher stores the theme separately under `milo.state.mode`.
 
 ## Planned contributions
 
 Stage 07 generalizes owner-scoped registration for menu entries, activity entries, views, editor types, header actions, panel views, footer status items and command/search registrations. Stable namespaced IDs, order, region, title and icon are metadata. Every registration returns a disposer, rejects duplicates and is removed when the owner stops. Use one shared registry contract for modules and extensions; trusted module components can lazy-import local Svelte files, extension UI goes through the isolated rendering mechanism described in [EXTENSIONS.md](EXTENSIONS.md).
 
-No direct import from extensions into `frontend/src/app.svelte` or layout components. An unloaded renderer shows a loading/error state. Empty regions collapse gracefully. A test contribution should prove the shell can accept unknown types without editing the shell.
+No direct import from extensions into `frontend/src/app.svelte` or layout components. Empty regions collapse gracefully. A test contribution should prove the shell can accept unknown types without editing the shell.
 
 ## Task UI planned for Stage 05
 
