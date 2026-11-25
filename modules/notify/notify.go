@@ -5,12 +5,14 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"milo.local/platform/core/module"
+	"milo.local/platform/modules/action"
 )
 
 const ID = "notify"
@@ -25,10 +27,15 @@ const (
 	Error   Severity = "error"
 )
 
-// ActionRef names an action previously registered by a trusted producer.
-// Stage 05 preserves the reference as data and offers no invocation API.
-type ActionRef struct {
-	ID string `json:"id"`
+// ActionRef contains only a registered ID and data arguments.
+type ActionRef = action.Reference
+
+func cloneActions(refs []ActionRef) []ActionRef {
+	result := slices.Clone(refs)
+	for i := range result {
+		result[i].Args = maps.Clone(result[i].Args)
+	}
+	return result
 }
 
 type Message struct {
@@ -102,7 +109,7 @@ func (s *Service) Publish(owner string, message Message) (string, error) {
 		return "", errors.New("invalid notification severity")
 	}
 	for _, ref := range message.Actions {
-		if !validID(ref.ID) || !strings.Contains(ref.ID, ".") {
+		if !action.ValidID(ref.ID) || !strings.Contains(ref.ID, ".") || !action.ValidArguments(ref.Args) {
 			return "", errors.New("invalid notification action reference")
 		}
 	}
@@ -112,14 +119,14 @@ func (s *Service) Publish(owner string, message Message) (string, error) {
 		return "", errors.New("notifications are unavailable")
 	}
 	item := Notification{ID: rand.Text(), Owner: owner, Severity: message.Severity, Title: title,
-		Description: message.Description, Actions: slices.Clone(message.Actions), Time: time.Now().UTC()}
+		Description: message.Description, Actions: cloneActions(message.Actions), Time: time.Now().UTC()}
 	change := Change{}
 	if len(s.items) == HistoryLimit {
 		change.Removed = s.items[0].ID
 		s.items = slices.Delete(s.items, 0, 1)
 	}
 	s.items = append(s.items, item)
-	item.Actions = slices.Clone(item.Actions)
+	item.Actions = cloneActions(item.Actions)
 	change.Added = &item
 	s.publish(change)
 	return item.ID, nil
@@ -134,7 +141,7 @@ func (s *Service) List() Snapshot {
 	defer s.mu.Unlock()
 	items := make([]Notification, len(s.items))
 	for i, item := range s.items {
-		item.Actions = slices.Clone(item.Actions)
+		item.Actions = cloneActions(item.Actions)
 		items[i] = item
 	}
 	return Snapshot{s.revision, items}

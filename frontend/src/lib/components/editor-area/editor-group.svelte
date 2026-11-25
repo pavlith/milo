@@ -3,6 +3,8 @@
     import { cn } from "$lib/components/utils";
     import type { EditorManager } from "$lib/editors/manager";
     import { activeTab, type CloseMode, type EditorChoice, type EditorGroup } from "$lib/editors/model";
+    import { useActions } from "$lib/modules/action/context";
+    import { actionIDs, editorOpenAction } from "$lib/modules/action/ids";
     import { t } from "$lib/i18n";
     import EditorRenderer from "./editor-renderer.svelte";
     import EditorTab from "./editor-tab.svelte";
@@ -23,11 +25,16 @@
     const dragType = "application/x-milo-editor-tab";
     let { manager, group, choices, focused, split, index, dragging, ondragtab }: Props = $props();
 
+    const actions = useActions();
     let active = $derived(activeTab(group));
     let dropBefore = $state<string | null>();
     let welcome = $derived(choices[0]);
 
     const close = async (mode: CloseMode, id: string) => {
+        if (mode === "self") {
+            await actions.invoke({ id: actionIDs.closeTab, args: { tab: id } });
+            return;
+        }
         const focusedTab = document.activeElement?.closest<HTMLElement>("[data-tab]")?.dataset.tab;
         if (await manager.close(group.id, mode, id)) {
             if (focused && (!focusedTab || !manager.focusedGroup.tabs.some((tab) => tab.id === focusedTab))) {
@@ -133,10 +140,7 @@
                                   manager.open(tab, { groupId: group.id, newInstance: true });
                                   void focusActiveEditor(manager);
                               }}
-                        onothergroup={() => {
-                            manager.moveToOtherGroup(tab.id);
-                            void focusActiveEditor(manager);
-                        }}
+                        onothergroup={() => void actions.invoke({ id: actionIDs.moveGroup, args: { tab: tab.id } })}
                     />
                 </div>
             {/each}
@@ -144,28 +148,15 @@
 
         <OpenEditorMenu
             {choices}
-            onopen={(choice) => {
-                manager.open(choice, { groupId: group.id });
-                void focusActiveEditor(manager);
-            }}
+            onopen={(choice) => void actions.invoke({ id: editorOpenAction(choice.id), args: { group: group.id } })}
             onsplit={index === 0
-                ? () => {
-                      manager.focusGroup(group.id);
-                      manager.splitRight();
-                      void focusActiveEditor(manager);
-                  }
+                ? () => void actions.invoke({ id: actionIDs.split, args: { group: group.id } })
                 : undefined}
             onfocusother={split
-                ? () => {
-                      manager.focusGroup(group.id);
-                      manager.focusOtherGroup();
-                      void focusActiveEditor(manager);
-                  }
+                ? () => void actions.invoke({ id: actionIDs.focusOther, args: { group: group.id } })
                 : undefined}
             onclosegroup={split
-                ? async () => {
-                      if (await manager.closeGroup(group.id)) void focusActiveEditor(manager);
-                  }
+                ? () => void actions.invoke({ id: actionIDs.closeGroup, args: { group: group.id } })
                 : undefined}
         />
     </div>
@@ -182,10 +173,8 @@
                     <Button
                         size="sm"
                         variant="outline"
-                        onclick={() => {
-                            manager.open(welcome, { groupId: group.id });
-                            void focusActiveEditor(manager);
-                        }}
+                        onclick={() =>
+                            void actions.invoke({ id: editorOpenAction(welcome.id), args: { group: group.id } })}
                     >
                         {$t("workbench.openWelcome")}
                     </Button>

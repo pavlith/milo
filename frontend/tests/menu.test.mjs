@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { get } from "svelte/store";
 import { MenuRegistry } from "../src/lib/menu.ts";
+import { ActionRegistry } from "../src/lib/modules/action/registry.ts";
 
 const file = { kind: "section", id: "milo.file", owner: "milo", label: "File", order: 10 };
 const mail = { kind: "section", id: "example.mail.menu", owner: "example.mail", label: "Mail", order: 20 };
@@ -30,7 +31,6 @@ test("sections and groups accept ordered contributions from independent owners",
         owner: mail.owner,
         label: "Compose",
         action: "example.mail.compose",
-        shortcut: "Ctrl+N",
     };
     menu.register(item);
     const entries = get(menu);
@@ -63,37 +63,46 @@ test("owner cleanup excludes other owners and disposers cannot remove new regist
     assert.deepEqual(get(menu).get(undefined), [file]);
 });
 
-test("dispatch resolves the action by ID and owner and rechecks item and parent availability", () => {
+test("menu and palette dispatch the same pane toggle and menu placement still guards selection", async () => {
     const menu = new MenuRegistry();
     let visible = true;
     let enabled = true;
+    let panel = false;
     menu.register({ ...file, enabled: () => enabled });
     const dispose = menu.register({
         kind: "item",
         parent: file.id,
         id: "example.tools.run",
         owner: tools.owner,
-        label: "Run",
-        action: "example.tools.perform",
+        action: "example.tools.toggle-panel",
         visible: () => visible,
     });
     const [item] = get(menu).get(file.id);
-    let calls = 0;
-    const resolve = (id, owner) => (id === item.action && owner === tools.owner ? () => calls++ : undefined);
-
-    menu.invoke(item, resolve);
-    assert.equal(calls, 1);
-    menu.invoke(item, () => undefined);
+    const actions = new ActionRegistry(() => ({ layer: "workbench", flags: ["workbench"] }), assert.fail);
+    actions.register({
+        id: item.action,
+        owner: tools.owner,
+        title: "Toggle panel",
+        run: () => {
+            panel = !panel;
+        },
+    });
+    const selectMenu = () => menu.isEnabled(item) && actions.invoke({ id: item.action }, item.owner);
+    const [command] = actions.list();
+    await selectMenu();
+    assert.equal(panel, true);
+    await actions.invoke({ id: command.id });
+    assert.equal(panel, false);
     visible = false;
-    menu.invoke(item, resolve);
+    assert.equal(selectMenu(), false);
     visible = true;
     enabled = false;
-    menu.invoke(item, resolve);
+    assert.equal(selectMenu(), false);
     enabled = true;
     menu.unregister(file.id);
-    menu.invoke(item, resolve);
+    assert.equal(selectMenu(), false);
     menu.register(file);
     dispose();
-    menu.invoke(item, resolve);
-    assert.equal(calls, 1);
+    assert.equal(selectMenu(), false);
+    assert.equal(panel, false);
 });

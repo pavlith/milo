@@ -15,6 +15,7 @@ import (
 	"milo.local/platform/core/module"
 	"milo.local/platform/modules/logger"
 	"milo.local/platform/modules/notify"
+	"milo.local/platform/modules/search"
 	"milo.local/platform/modules/settings"
 )
 
@@ -189,8 +190,23 @@ func TestTaskOutcomesRetentionAndDiagnostics(t *testing.T) {
 		t.Fatalf("wrong completed retention: %+v", snapshot)
 	}
 	items := h.inbox.List().Items
+	searches := search.New(h.logs.For(search.ID), nil)
+	if err := searches.Definition().Start(t.Context(), &module.Scope{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.RegisterSearch(&module.Scope{}, searches); err != nil {
+		t.Fatal(err)
+	}
+	results, err := searches.Query(t.Context(), ID+".history", "succeeded job 4", 1)
+	if err != nil || len(results) != 1 || results[0].Title != "Job 49" ||
+		results[0].Action == nil || results[0].Action.ID != OpenActionID {
+		t.Fatalf("unexpected task search results: %+v, %v", results, err)
+	}
 	notified := make(map[string]notify.Severity, len(items))
 	for _, item := range items {
+		if len(item.Actions) != 1 || item.Actions[0].ID != OpenActionID || item.Owner != "test" {
+			t.Fatalf("unexpected task action reference: %+v", item)
+		}
 		notified[item.Title] = item.Severity
 		if item.Severity == notify.Error && item.Description != "Check the input." {
 			t.Fatalf("unsafe notification: %+v", item)

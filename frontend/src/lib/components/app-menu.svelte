@@ -1,19 +1,30 @@
 <script lang="ts">
     import * as Menubar from "$lib/components/ui/menubar";
     import { t } from "$lib/i18n";
-    import type { MenuRegistry, ResolveMenuAction } from "$lib/menu";
+    import type { MenuRegistry } from "$lib/menu";
+    import { useActions } from "$lib/modules/action/context";
+    import { titleOf } from "$lib/modules/action/registry";
+    import { formatShortcut } from "$lib/modules/action/shortcuts";
 
-    let { menu, resolve }: { menu: MenuRegistry; resolve: ResolveMenuAction } = $props();
+    let { menu }: { menu: MenuRegistry } = $props();
+    const actions = useActions();
+    const select = (item: import("$lib/menu").MenuItem) => {
+        if (menu.isEnabled(item)) void actions.invoke({ id: item.action }, item.owner);
+    };
 </script>
 
 {#snippet entries(parent: string)}
     {#each $menu.get(parent) ?? [] as entry (entry.id)}
         {#if entry.visible?.() !== false}
             {#if entry.kind === "item"}
-                {@const disabled = !menu.isEnabled(entry) || !resolve(entry.action, entry.owner)}
+                {@const action = $actions.find(({ id }) => id === entry.action)}
+                {@const disabled =
+                    !menu.isEnabled(entry) ||
+                    !action ||
+                    actions.status({ id: entry.action }, entry.owner) !== "enabled"}
                 {#snippet label()}
-                    {$t(entry.label)}
-                    {#if entry.shortcut}<Menubar.Shortcut>{entry.shortcut}</Menubar.Shortcut>{/if}
+                    {entry.label ? $t(entry.label) : action ? titleOf(action.title, $t) : entry.action}
+                    {#if action?.binding}<Menubar.Shortcut>{formatShortcut(action.binding)}</Menubar.Shortcut>{/if}
                 {/snippet}
                 {#if entry.checked}
                     <Menubar.CheckboxItem
@@ -22,13 +33,13 @@
                         onSelect={(event) => {
                             // Keep the checkmark controlled by the action's state.
                             event.preventDefault();
-                            menu.invoke(entry, resolve);
+                            select(entry);
                         }}
                     >
                         {@render label()}
                     </Menubar.CheckboxItem>
                 {:else}
-                    <Menubar.Item {disabled} onSelect={() => menu.invoke(entry, resolve)}>
+                    <Menubar.Item {disabled} onSelect={() => select(entry)}>
                         {@render label()}
                     </Menubar.Item>
                 {/if}

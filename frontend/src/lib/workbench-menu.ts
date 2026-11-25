@@ -1,29 +1,25 @@
 import type { MenuItem, MenuRegistration, MenuRegistry } from "./menu";
-import { formatShortcut } from "./shortcut";
+import { actionIDs, editorMenuActions, editorOpenAction, paneAction, workbenchOwner } from "./modules/action/ids.ts";
 import type { ResizableRegion } from "./state";
-import type { WorkbenchEditorAction } from "./workbench-editor-actions";
 
-const owner = "milo.workbench";
 type WithoutOwner<Entry> = Entry extends MenuRegistration ? Omit<Entry, "owner"> : never;
 
-interface WorkbenchMenuOptions {
-    editorActions: readonly WorkbenchEditorAction[];
-    openPalette: () => void;
-    paletteShortcut: string;
-    openWelcome: () => void;
-    quit: () => void;
-    isDesktop: () => boolean;
-    toggle: (region: ResizableRegion) => void;
-    isOpen: (region: ResizableRegion) => boolean;
-}
-
-export function registerWorkbenchMenu(menu: MenuRegistry, options: WorkbenchMenuOptions) {
-    const actions = new Map<string, () => void>();
-    const register = (entry: WithoutOwner<MenuRegistration>) => menu.register({ ...entry, owner });
+export function registerWorkbenchMenu(
+    menu: MenuRegistry,
+    isDesktop: () => boolean,
+    isOpen: (region: ResizableRegion) => boolean
+) {
+    const owner = workbenchOwner;
+    const disposers: (() => void)[] = [];
+    const add = (entry: MenuRegistration) => {
+        disposers.push(menu.register(entry));
+    };
+    const register = (entry: WithoutOwner<MenuRegistration>) => add({ ...entry, owner });
     const file = owner + ".file";
     const edit = owner + ".edit";
     const view = owner + ".view";
     const help = owner + ".help";
+    const system = view + ".system";
     register({ kind: "section", id: file, label: "workbench.menu.file", order: 100 });
     register({ kind: "section", id: edit, label: "workbench.menu.edit", order: 200 });
     register({ kind: "section", id: view, label: "workbench.menu.view", order: 300 });
@@ -31,33 +27,32 @@ export function registerWorkbenchMenu(menu: MenuRegistry, options: WorkbenchMenu
 
     const item = (
         parent: string,
-        name: string,
-        label: string,
-        run: () => void,
-        extra: Pick<MenuItem, "visible" | "enabled" | "order" | "shortcut" | "checked"> = {}
+        action: string,
+        extra: Partial<Pick<MenuItem, "label" | "visible" | "order" | "checked">> = {}
     ) => {
-        const action = owner + "." + name;
-        actions.set(action, run);
-        register({ kind: "item", id: parent + "." + name, parent, label, action, ...extra });
-    };
-
-    item(file, "commands", "workbench.command", options.openPalette, { shortcut: options.paletteShortcut });
-    register({ kind: "separator", id: file + ".quit-separator", parent: file, visible: options.isDesktop, order: 900 });
-    item(file, "quit", "workbench.menu.quit", options.quit, { visible: options.isDesktop, order: 910 });
-    for (const region of ["primary", "panel", "secondary"] as const) {
-        item(view, "toggle-" + region, "workbench." + region, () => options.toggle(region), {
-            checked: () => options.isOpen(region),
+        const actionOwner = action.slice(0, action.lastIndexOf("."));
+        add({
+            kind: "item",
+            id: action + ".menu",
+            owner: actionOwner,
+            parent,
+            action,
+            ...extra,
         });
+    };
+    item(file, actionIDs.commands);
+    register({ kind: "separator", id: file + ".quit-separator", parent: file, visible: isDesktop, order: 900 });
+    item(file, actionIDs.quit, { visible: isDesktop, order: 910 });
+    item(edit, actionIDs.settings, { label: "tab.settings" });
+    for (const region of ["primary", "panel", "secondary"] as const) {
+        item(view, paneAction(region), { label: "workbench." + region, checked: () => isOpen(region) });
     }
     register({ kind: "separator", id: view + ".editor-separator", parent: view, order: 100 });
-    for (const [index, action] of options.editorActions.entries()) {
-        item(view, action.id, action.label, action.run, {
-            order: 110 + index,
-            enabled: action.enabled,
-            shortcut: action.binding && formatShortcut(action.binding),
-        });
-    }
-    item(help, "welcome", "tab.welcome", options.openWelcome);
-
-    return (id: string, requester: string) => (requester === owner ? actions.get(id) : undefined);
+    for (const [index, action] of editorMenuActions.entries()) item(view, action, { order: 110 + index });
+    register({ kind: "group", id: system, parent: view, order: 200 });
+    for (const action of [actionIDs.output, actionIDs.tasks, actionIDs.notifications]) item(system, action);
+    item(help, editorOpenAction("welcome"), { label: "tab.welcome" });
+    return () => {
+        for (const dispose of disposers.reverse()) dispose();
+    };
 }

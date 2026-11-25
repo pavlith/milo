@@ -1,13 +1,15 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
+    import { useActions } from "$lib/modules/action/context";
+    import { actionIDs } from "$lib/modules/action/ids";
     import { t } from "$lib/i18n";
     import { Portal } from "bits-ui";
     import { Copy, Trash2 } from "@lucide/svelte";
     import { tick } from "svelte";
     import { SvelteSet } from "svelte/reactivity";
     import { copyText, fieldsText, filterLogs, levels, logTime, severityClass, type LogLevel } from "./records";
-    import { loggerAPI, output } from "./state";
+    import { output } from "./state";
 
     let { toolbar, visible: viewVisible }: { toolbar?: HTMLElement; visible: boolean } = $props();
     const selectClass =
@@ -35,14 +37,7 @@
         }
     });
 
-    async function clear() {
-        error = "";
-        try {
-            await (await loggerAPI()).Clear();
-        } catch (cause) {
-            error = String(cause);
-        }
-    }
+    const actions = useActions();
 
     async function copy() {
         error = "";
@@ -125,8 +120,8 @@
             <Button
                 size="icon-xs"
                 variant="ghost"
-                disabled={!records.length}
-                onclick={clear}
+                disabled={!records.length || !$actions.some(({ id }) => id === actionIDs.clearOutput)}
+                onclick={() => void actions.invoke({ id: actionIDs.clearOutput })}
                 title={$t("output.clear")}
                 aria-label={$t("output.clear")}
             >

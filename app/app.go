@@ -16,12 +16,14 @@ import (
 )
 
 const (
-	taskEvent      = "milo:task-changed"
-	notifyEvent    = "milo:notification-changed"
-	loggerEvent    = "milo:log-changed"
-	settingsEvent  = "milo:settings-changed"
-	productName    = "Milo"
-	hostReadyEvent = "milo:host-ready"
+	actionCatalogEvent = "milo:action-catalog-changed"
+	searchCatalogEvent = "milo:search-catalog-changed"
+	taskEvent          = "milo:task-changed"
+	notifyEvent        = "milo:notification-changed"
+	loggerEvent        = "milo:log-changed"
+	settingsEvent      = "milo:settings-changed"
+	productName        = "Milo"
+	hostReadyEvent     = "milo:host-ready"
 )
 
 func Run(assets fs.FS) error {
@@ -31,6 +33,8 @@ func Run(assets fs.FS) error {
 	application.RegisterEvent[logger.Change](loggerEvent)
 	application.RegisterEvent[notify.Change](notifyEvent)
 	application.RegisterEvent[task.Change](taskEvent)
+	application.RegisterEvent[bool](actionCatalogEvent)
+	application.RegisterEvent[bool](searchCatalogEvent)
 	paths, err := core.UserPaths()
 	if err != nil {
 		return err

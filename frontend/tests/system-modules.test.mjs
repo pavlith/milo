@@ -3,10 +3,10 @@ import test from "node:test";
 import { get } from "svelte/store";
 import { MenuRegistry } from "../src/lib/menu.ts";
 import { copyText, filterLogs } from "../src/lib/modules/logger/records.ts";
-import { registerSystemMenu } from "../src/lib/modules/menu.ts";
 import { applyNotificationChange } from "../src/lib/modules/notify/inbox.ts";
 import { applySettings, filterSettings } from "../src/lib/modules/settings/entries.ts";
 import { aggregateProgress, applyTaskChange } from "../src/lib/modules/task/tasks.ts";
+import { registerWorkbenchMenu } from "../src/lib/workbench-menu.ts";
 
 test("settings search matches labels, categories and identifiers, and reset replaces an override", () => {
     const schema = {
@@ -73,29 +73,22 @@ test("Task progress is indeterminate when any operation is indeterminate and a t
     );
 });
 
-test("system menu dispatch is owner scoped and disposers remove module items", () => {
+test("system menu placements carry the module action IDs and dispose together", () => {
     const menu = new MenuRegistry();
-    for (const section of ["edit", "view"])
-        menu.register({
-            kind: "section",
-            id: "milo.workbench." + section,
-            owner: "milo.workbench",
-            label: section,
-        });
-    const opened = [];
-    const open = (name) => () => opened.push(name);
-    const registration = registerSystemMenu(menu, {
-        settings: open("settings"),
-        tasks: open("tasks"),
-        output: open("output"),
-        notifications: open("notifications"),
-    });
+    const dispose = registerWorkbenchMenu(
+        menu,
+        () => true,
+        () => false
+    );
     const items = get(menu).get("milo.workbench.view.system");
-    for (const item of items) menu.invoke(item, registration.resolve);
-    assert.deepEqual(opened, ["output", "tasks", "notifications"]);
-    assert.equal(registration.resolve("milo.task.open", "milo.logger"), undefined);
-    registration.dispose();
-    menu.invoke(items[0], registration.resolve);
-    assert.equal(opened.length, 3);
+    assert.deepEqual(
+        items.map(({ action, owner }) => [action, owner]),
+        [
+            ["milo.logger.open", "milo.logger"],
+            ["milo.task.open", "milo.task"],
+            ["milo.notify.open", "milo.notify"],
+        ]
+    );
+    dispose();
     assert.equal(get(menu).get("milo.workbench.view.system"), undefined);
 });

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { activityRegistry, type Activity } from "$lib/activities";
     import AppMenu from "$lib/components/app-menu.svelte";
-    import Command, { type WorkbenchCommand } from "$lib/components/command.svelte";
+    import Command from "$lib/components/command.svelte";
     import CloseDialog, { EditorCloseDialog } from "$lib/components/editor-area/close-dialog.svelte";
     import WorkbenchLayout from "$lib/components/workbench-layout.svelte";
     import WorkbenchHeader, { paneIcons } from "$lib/components/workbench-header.svelte";
@@ -12,32 +12,60 @@
     import { EditorRegistry } from "$lib/editors/registry";
     import { t } from "$lib/i18n";
     import { MenuRegistry } from "$lib/menu";
-    import { bindShortcuts, formatShortcut } from "$lib/shortcut";
-    import { loadWorkbench, resizableRegions, saveWorkbench, type ResizableRegion } from "$lib/state";
-    import { editorActions } from "$lib/workbench-editor-actions";
-    import { registerWorkbenchMenu } from "$lib/workbench-menu";
-    import { LayoutGrid, ListTodo, Settings } from "@lucide/svelte";
+    import { focusFlags, provideActions } from "$lib/modules/action/context";
+    import { actionIDs, editorOpenAction, paneAction, workbenchOwner } from "$lib/modules/action/ids";
+    import {
+        ActionRegistry,
+        titleOf,
+        type Action,
+        type ActionLayer,
+        type ContextFlag,
+    } from "$lib/modules/action/registry";
+    import { bindShortcuts } from "$lib/modules/action/shortcuts";
+    import { connectCommandBackend } from "$lib/modules/command-backend";
     import SystemFooter from "$lib/modules/footer.svelte";
-    import { registerSystemMenu } from "$lib/modules/menu";
     import SystemPanel from "$lib/modules/panel.svelte";
+    import { registerBuiltinSearch } from "$lib/modules/search/builtins";
+    import { SearchRegistry } from "$lib/modules/search/registry";
     import SettingsDialog from "$lib/modules/settings/settings-dialog.svelte";
+    import { settings } from "$lib/modules/settings/state";
     import SettingsTheme from "$lib/modules/settings/theme.svelte";
+    import { loadWorkbench, resizableRegions, saveWorkbench, type ResizableRegion } from "$lib/state";
+    import { registerEditorActions } from "$lib/workbench-editor-actions";
+    import { registerWorkbenchMenu } from "$lib/workbench-menu";
+    import {
+        Bell,
+        Columns2,
+        LayoutGrid,
+        ListTodo,
+        MoveHorizontal,
+        Redo2,
+        Search,
+        Settings,
+        Terminal,
+        Undo2,
+        X,
+    } from "@lucide/svelte";
     import { onMount } from "svelte";
-
-    const paletteBinding = { key: "p", shift: true };
+    import { toast } from "svelte-sonner";
 
     const registry = new EditorRegistry();
     const choices = registerBuiltinEditors(registry);
-    const choiceById = new Map(choices.map((choice) => [choice.id, choice]));
-    const initial = loadWorkbench({ registry, defaultEditor: choices[0], legacyEditors: choiceById });
+    const initial = loadWorkbench({
+        registry,
+        defaultEditor: choices[0],
+        legacyEditors: new Map(choices.map((choice) => [choice.id, choice])),
+    });
     const dialog = new EditorCloseDialog();
     const manager = new EditorManager(registry, initial.editor, dialog);
 
     let editor = $state.raw(manager.state);
     let layout: ReturnType<typeof WorkbenchLayout> | undefined = $state();
     let paletteOpen = $state(false);
+    let query = $state("");
+    let paletteOrigin = $state.raw<HTMLElement>();
     let settingsOpen = $state(false);
-    const openSettings = () => (settingsOpen = true);
+    let selectedCategory = $state("general");
     let desktop = $state.raw<DesktopRuntime>();
     let customTitlebar = $state(false);
     let panelView = $state("output");
@@ -48,33 +76,192 @@
     let dirty = $derived(editor.groups.some((group) => group.tabs.some((tab) => tab.dirty)));
     let modal = $derived(settingsOpen || !!(dialog.prompt || dialog.failure));
 
-    const activities = activityRegistry();
-    activities.register({
-        id: "milo.workbench.views",
-        owner: "milo.workbench",
-        title: "workbench.views",
-        icon: LayoutGrid,
-        navigation: choices.map((choice) => ({
-            ...choice,
-            run: () => manager.open(choice, { preview: choice.preview }),
-            isActive: () => active?.editorTypeId === choice.editorTypeId && active.resource === choice.resource,
-        })),
-    });
-    activities.register({
-        id: "milo.task.activity",
-        owner: "milo.task",
-        title: "task.title",
-        icon: ListTodo,
-        navigation: [
-            {
-                id: "milo.task.open",
-                title: "task.title",
-                icon: ListTodo,
-                run: () => showPanel("tasks"),
-                isActive: () => isRegionOpen("panel") && panelView === "tasks",
+    const actions = new ActionRegistry(
+        () => {
+            const focused = document.activeElement;
+            const layer: ActionLayer =
+                modal ||
+                (!paletteOpen && !!focused?.closest('[role="dialog"][aria-modal="true"], [role="alertdialog"]'))
+                    ? "modal"
+                    : paletteOpen
+                      ? query.startsWith(">")
+                          ? "command"
+                          : "search"
+                      : "workbench";
+            const flags: ContextFlag[] = [layer, ...focusFlags(focused)];
+            if (layer === "command" || layer === "search") flags.push("workbench");
+            if (groupIndex >= 0) flags.push("group");
+            if (active) flags.push("editor");
+            if (editor.groups.length > 1) flags.push("multiple-groups");
+            return { layer, flags };
+        },
+        (failure, id, title) => {
+            if (failure === "failed") console.error("Action failed", id);
+            const label = title ? titleOf(title, $t) : id;
+            toast.error($t("workbench.action." + failure, label));
+        }
+    );
+    provideActions(actions);
+    const searches = new SearchRegistry();
+
+    const isRegionOpen = (region: ResizableRegion) => layout?.isOpen(region) ?? false;
+    const showPanel = (view: "output" | "tasks") => {
+        panelView = view;
+        layout?.setOpen("panel", true);
+    };
+    const openCenter = (mode: "command" | "search") => {
+        if (!paletteOpen) {
+            const focused = document.activeElement;
+            paletteOrigin = focused instanceof HTMLElement ? focused : undefined;
+        }
+        query = mode === "command" ? ">" : "";
+        paletteOpen = true;
+    };
+
+    const register = (action: Action) =>
+        actions.register({
+            available: ({ layer }) => layer !== "modal",
+            ...action,
+        });
+    const disposers = [
+        registerEditorActions(actions, manager, () => editor, choices, {
+            [actionIDs.split]: Columns2,
+            [actionIDs.focusOther]: MoveHorizontal,
+            [actionIDs.moveGroup]: MoveHorizontal,
+            [actionIDs.nextTab]: Redo2,
+            [actionIDs.previousTab]: Undo2,
+            [actionIDs.closeTab]: X,
+            [actionIDs.reopenTab]: Undo2,
+            [actionIDs.closeGroup]: X,
+        }),
+        register({
+            id: actionIDs.commands,
+            owner: workbenchOwner,
+            title: "workbench.command",
+            icon: Search,
+            binding: { key: "p", shift: true, editable: true },
+            listed: false,
+            run: () => openCenter("command"),
+        }),
+        register({
+            id: actionIDs.search,
+            owner: workbenchOwner,
+            title: "workbench.search",
+            icon: Search,
+            binding: { key: "p", editable: true },
+            listed: false,
+            run: () => openCenter("search"),
+        }),
+        register({
+            id: actionIDs.settings,
+            owner: "milo.settings",
+            title: (t) => t("workbench.command.open", t("tab.settings")),
+            icon: Settings,
+            delegates: [workbenchOwner],
+            validate: (args) => {
+                if (!Object.keys(args).length) return true;
+                const state = $settings;
+                return (
+                    Object.keys(args).length === 1 &&
+                    state.status === "ready" &&
+                    !!state.value.entries?.some(({ schema }) => schema.category === args.category)
+                );
             },
-        ],
-    });
+            run: ({ category }) => {
+                if (category) selectedCategory = category;
+                settingsOpen = true;
+            },
+        }),
+        register({
+            id: actionIDs.output,
+            owner: "milo.logger",
+            title: "output.title",
+            icon: Terminal,
+            delegates: [workbenchOwner],
+            run: () => showPanel("output"),
+        }),
+        register({
+            id: actionIDs.tasks,
+            owner: "milo.task",
+            title: "task.title",
+            icon: ListTodo,
+            delegates: ["*"],
+            run: () => showPanel("tasks"),
+        }),
+        register({
+            id: actionIDs.notifications,
+            owner: "milo.notify",
+            title: "notify.title",
+            icon: Bell,
+            delegates: [workbenchOwner],
+            run: () => {
+                notificationsOpen = true;
+            },
+        }),
+        register({
+            id: actionIDs.quit,
+            owner: workbenchOwner,
+            title: "workbench.menu.quit",
+            icon: X,
+            available: ({ layer }) => layer !== "modal" && !!desktop,
+            run: () => desktop?.Application.Quit(),
+        }),
+        ...resizableRegions.map((region) =>
+            register({
+                id: paneAction(region),
+                owner: workbenchOwner,
+                icon: paneIcons[region],
+                title: (t) =>
+                    t(
+                        isRegionOpen(region) ? "workbench.command.hide" : "workbench.command.show",
+                        t("workbench." + region)
+                    ),
+                enabled: () => !!layout,
+                run: () => layout?.toggle(region),
+            })
+        ),
+        registerBuiltinSearch(
+            searches,
+            actions,
+            () => $actions,
+            choices,
+            () => editor,
+            () => $settings,
+            () => $t
+        ),
+    ];
+
+    const activities = activityRegistry();
+    disposers.push(
+        activities.register({
+            id: "milo.workbench.views",
+            owner: workbenchOwner,
+            title: "workbench.views",
+            icon: LayoutGrid,
+            navigation: choices.map((choice) => ({
+                ...choice,
+                action: { id: editorOpenAction(choice.id), args: { preview: "true" } },
+                isActive: () => active?.editorTypeId === choice.editorTypeId && active.resource === choice.resource,
+            })),
+        })
+    );
+    disposers.push(
+        activities.register({
+            id: "milo.task.activity",
+            owner: "milo.task",
+            title: "task.title",
+            icon: ListTodo,
+            navigation: [
+                {
+                    id: actionIDs.tasks,
+                    title: "task.title",
+                    icon: ListTodo,
+                    action: { id: actionIDs.tasks },
+                    isActive: () => isRegionOpen("panel") && panelView === "tasks",
+                },
+            ],
+        })
+    );
 
     let selectedActivityId = $state<string>();
     let activity = $derived($activities.find(({ id }) => id === selectedActivityId) ?? $activities[0]);
@@ -82,47 +269,10 @@
         selectedActivityId = selected.id;
         if (selected.navigation.length) layout?.setOpen("primary", true);
     };
-
-    const open = (id: string) => {
-        const choice = choiceById.get(id);
-        if (choice) manager.open(choice);
-    };
-    const isRegionOpen = (region: ResizableRegion) => layout?.isOpen(region) ?? false;
-    const toggleRegion = (region: ResizableRegion) => layout?.toggle(region);
-    const showPanel = (view: "output" | "tasks") => {
-        panelView = view;
-        layout?.setOpen("panel", true);
-    };
-    const openPalette = () => (paletteOpen = true);
-    const actions = editorActions(
-        manager,
-        () => editor,
-        () => !modal
-    );
     const menu = new MenuRegistry();
-    const resolveWorkbenchAction = registerWorkbenchMenu(menu, {
-        editorActions: actions,
-        openPalette,
-        paletteShortcut: formatShortcut(paletteBinding),
-        openWelcome: () => open("welcome"),
-        quit: () =>
-            void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
-        isDesktop: () => !!desktop,
-        toggle: toggleRegion,
-        isOpen: isRegionOpen,
-    });
-
-    const systemMenu = registerSystemMenu(menu, {
-        settings: openSettings,
-        output: () => showPanel("output"),
-        tasks: () => showPanel("tasks"),
-        notifications: () => (notificationsOpen = true),
-    });
-    const resolveMenuAction: typeof resolveWorkbenchAction = (id, owner) =>
-        resolveWorkbenchAction(id, owner) ?? systemMenu.resolve(id, owner);
+    disposers.push(registerWorkbenchMenu(menu, () => !!desktop, isRegionOpen));
 
     $effect(() => saveWorkbench(editor, registry, initial.legacySplitSize));
-
     $effect(() => {
         if (!dirty || location.protocol === "wails:") return;
         const confirmUnload = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -130,16 +280,17 @@
         return () => window.removeEventListener("beforeunload", confirmUnload);
     });
 
-    onMount(() => systemMenu.dispose);
-    onMount(() => manager.subscribe((workspace) => (editor = workspace)));
-    onMount(() =>
-        bindShortcuts([
-            { binding: paletteBinding, run: openPalette, enabled: () => !modal },
-            ...actions.flatMap(({ binding, run, enabled }) =>
-                binding ? [{ binding, run, enabled: () => !paletteOpen && enabled() }] : []
-            ),
-        ])
-    );
+    onMount(() => {
+        const disconnect = connectCommandBackend(actions, searches);
+        const unbind = bindShortcuts(actions);
+        const unsubscribe = manager.subscribe((workspace) => (editor = workspace));
+        return () => {
+            disconnect?.();
+            unbind();
+            unsubscribe();
+            for (const dispose of disposers.reverse()) dispose();
+        };
+    });
 
     onMount(() =>
         connectDesktop(
@@ -151,31 +302,6 @@
             (name) => (appName = name)
         )
     );
-
-    let commands = $derived<WorkbenchCommand[]>([
-        {
-            id: "open.settings",
-            label: $t("workbench.command.open", $t("tab.settings")),
-            icon: Settings,
-            run: openSettings,
-        },
-        ...choices.map((choice) => ({
-            id: "open." + choice.id,
-            label: $t("workbench.command.open", $t(choice.title)),
-            icon: choice.icon,
-            run: () => manager.open(choice),
-        })),
-        ...resizableRegions.map((region) => ({
-            id: "toggle." + region,
-            label: $t(
-                isRegionOpen(region) ? "workbench.command.hide" : "workbench.command.show",
-                $t("workbench." + region)
-            ),
-            icon: paneIcons[region],
-            run: () => toggleRegion(region),
-        })),
-        ...actions.filter((action) => action.enabled()).map((action) => ({ ...action, label: $t(action.label) })),
-    ]);
 </script>
 
 <svelte:head>
@@ -183,45 +309,35 @@
 </svelte:head>
 <SettingsTheme />
 
-<WorkbenchHeader
-    {appName}
-    {desktop}
-    {customTitlebar}
-    {openPalette}
-    {isRegionOpen}
-    {toggleRegion}
-    paletteShortcut={formatShortcut(paletteBinding)}
->
-    {#snippet applicationMenu()}
-        <AppMenu {menu} resolve={resolveMenuAction} />
-    {/snippet}
-</WorkbenchHeader>
+<div class="contents" inert={paletteOpen}>
+    <WorkbenchHeader {appName} {desktop} {customTitlebar} {isRegionOpen}>
+        {#snippet applicationMenu()}<AppMenu {menu} />{/snippet}
+    </WorkbenchHeader>
 
-<WorkbenchLayout
-    bind:this={layout}
-    initialPanes={initial.panes}
-    legacySplitSize={initial.legacySplitSize}
-    activities={$activities}
-    {activity}
-    {selectActivity}
-    {openSettings}
-    {manager}
-    {editor}
-    {choices}
->
-    {#snippet panel(open)}<SystemPanel bind:view={panelView} {open} />{/snippet}
-</WorkbenchLayout>
+    <WorkbenchLayout
+        bind:this={layout}
+        initialPanes={initial.panes}
+        legacySplitSize={initial.legacySplitSize}
+        activities={$activities}
+        {activity}
+        {selectActivity}
+        {manager}
+        {editor}
+        {choices}
+    >
+        {#snippet panel(open)}<SystemPanel bind:view={panelView} {open} />{/snippet}
+    </WorkbenchLayout>
 
-<SystemFooter
-    title={active ? $t(active.title) : $t("pane.empty.title")}
-    group={editor.groups.length > 1 ? groupIndex + 1 : undefined}
-    dirty={active?.dirty}
-    bind:notificationsOpen
-    openTasks={() => showPanel("tasks")}
-/>
+    <SystemFooter
+        title={active ? $t(active.title) : $t("pane.empty.title")}
+        group={editor.groups.length > 1 ? groupIndex + 1 : undefined}
+        dirty={active?.dirty}
+        bind:notificationsOpen
+    />
+</div>
 
-<Command bind:open={paletteOpen} {commands} />
+<Command bind:open={paletteOpen} bind:query {searches} origin={paletteOrigin} />
 
-<SettingsDialog bind:open={settingsOpen} />
+<SettingsDialog bind:open={settingsOpen} bind:selectedCategory />
 
 <CloseDialog {dialog} />

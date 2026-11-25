@@ -6,6 +6,7 @@
     import { ResizableHandle, ResizablePane, ResizablePaneGroup } from "$lib/components/ui/resizable";
     import type { EditorManager } from "$lib/editors/manager";
     import type { EditorChoice, EditorWorkspace } from "$lib/editors/model";
+    import { useActions } from "$lib/modules/action/context";
     import { t } from "$lib/i18n";
     import { paneDefaults, type PanePreferences, type ResizableRegion } from "$lib/state";
     import { untrack, type Snippet } from "svelte";
@@ -16,7 +17,6 @@
         initialPanes: PanePreferences;
         activities: readonly Activity[];
         selectActivity: (activity: Activity) => void;
-        openSettings: () => void;
         activity?: Activity;
         legacySplitSize?: number;
         manager: EditorManager;
@@ -29,7 +29,6 @@
         initialPanes,
         activities,
         selectActivity,
-        openSettings,
         activity,
         legacySplitSize,
         manager,
@@ -37,6 +36,7 @@
         choices,
         panel,
     }: Props = $props();
+    const actions = useActions();
     type Pane = ReturnType<typeof ResizablePane>;
     let primary: Pane | undefined = $state();
     let secondary: Pane | undefined = $state();
@@ -128,7 +128,7 @@
 {/snippet}
 
 <Sidebar.Provider data-region="body" class="h-auto flex-1 overflow-hidden">
-    <LeftSidebar {activities} activeId={activity?.id} select={selectActivity} {openSettings} />
+    <LeftSidebar {activities} activeId={activity?.id} select={selectActivity} />
     <ResizablePaneGroup
         id={groups.primary}
         autoSaveId={groups.primary}
@@ -162,7 +162,9 @@
                                             <Sidebar.MenuButton
                                                 {isActive}
                                                 aria-current={isActive ? "page" : undefined}
-                                                onclick={item.run}
+                                                disabled={!$actions.some(({ id }) => id === item.action.id) ||
+                                                    actions.status(item.action, activity.owner) !== "enabled"}
+                                                onclick={() => void actions.invoke(item.action, activity.owner)}
                                             >
                                                 {#if item.icon}<item.icon />{/if}
                                                 <span>{$t(item.title)}</span>

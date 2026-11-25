@@ -11,10 +11,9 @@ interface MenuEntry {
 export interface MenuItem extends MenuEntry {
     kind: "item";
     parent: string;
-    label: string;
+    label?: string;
     action: string;
     checked?: () => boolean;
-    shortcut?: string;
 }
 
 export type MenuRegistration = Readonly<
@@ -24,8 +23,6 @@ export type MenuRegistration = Readonly<
     | (MenuEntry & { kind: "separator"; parent: string })
     | MenuItem
 >;
-
-export type ResolveMenuAction = (id: string, owner: string) => (() => void) | undefined;
 
 export class MenuRegistry {
     #entries = new Map<string, MenuRegistration>();
@@ -70,10 +67,6 @@ export class MenuRegistry {
 
     isEnabled(entry: MenuRegistration): boolean {
         return this.#isAttached(entry, (current) => current.visible?.() !== false && current.enabled?.() !== false);
-    }
-
-    invoke(item: MenuItem, resolve: ResolveMenuAction): void {
-        if (this.isEnabled(item)) resolve(item.action, item.owner)?.();
     }
 
     #isAttached(entry: MenuRegistration, available = (_entry: MenuRegistration) => true): boolean {

@@ -11,7 +11,7 @@ import (
 func TestNotificationLifecycleAndRetention(t *testing.T) {
 	var changes []Change
 	service := New(func(change Change) { changes = append(changes, change) })
-	message := Message{Severity: Success, Title: "Finished", Actions: []ActionRef{{ID: "example.open"}}}
+	message := Message{Severity: Success, Title: "Finished", Actions: []ActionRef{{ID: "example.open", Args: map[string]string{"category": "general"}}}}
 	if _, err := service.Publish("test", message); err == nil {
 		t.Fatal("published before start")
 	}
@@ -38,10 +38,13 @@ func TestNotificationLifecycleAndRetention(t *testing.T) {
 	}
 	id := snapshot.Items[0].ID
 	snapshot.Items[0].Actions[0].ID = "changed"
+	snapshot.Items[0].Actions[0].Args["category"] = "changed"
+	message.Actions[0].Args["category"] = "changed"
+	changes[1].Added.Actions[0].Args["category"] = "changed"
 	service.MarkRead(id)
 	service.MarkRead(id)
 	snapshot = service.List()
-	if !snapshot.Items[0].Read || snapshot.Items[0].Actions[0].ID != "example.open" || snapshot.Revision != HistoryLimit+2 {
+	if !snapshot.Items[0].Read || snapshot.Items[0].Actions[0].ID != "example.open" || snapshot.Items[0].Actions[0].Args["category"] != "general" || snapshot.Revision != HistoryLimit+2 {
 		t.Fatalf("unexpected read state or revision: %d", snapshot.Revision)
 	}
 	service.MarkAllRead()

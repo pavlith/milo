@@ -12,6 +12,8 @@
         title = "Command Palette",
         description = "Search for a command to run...",
         showCloseButton = false,
+        onOpenAutoFocus,
+        onCloseAutoFocus,
         portalProps,
         children,
         class: className,
@@ -19,6 +21,8 @@
     }: WithoutChildrenOrChild<DialogPrimitive.RootProps> &
         WithoutChildrenOrChild<CommandPrimitive.RootProps> & {
             portalProps?: DialogPrimitive.PortalProps;
+            onOpenAutoFocus?: DialogPrimitive.ContentProps["onOpenAutoFocus"];
+            onCloseAutoFocus?: DialogPrimitive.ContentProps["onCloseAutoFocus"];
             children: Snippet;
             title?: string;
             description?: string;
@@ -27,9 +31,11 @@
         } = $props();
 </script>
 
-<Dialog.Root bind:open {...restProps}>
+<Dialog.Root bind:open>
     <Dialog.Content
         animated={false}
+        {onOpenAutoFocus}
+        {onCloseAutoFocus}
         class={cn(
             "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
             showCloseButton &&

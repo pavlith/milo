@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { useActions } from "$lib/modules/action/context";
+    import { actionIDs } from "$lib/modules/action/ids";
     import { t } from "$lib/i18n";
     import NotificationCenter from "./notify/center.svelte";
     import { editorStatusID, preference, settings } from "./settings/state";
@@ -9,14 +11,13 @@
         group,
         dirty,
         notificationsOpen = $bindable(false),
-        openTasks,
     }: {
         title: string;
         group?: number;
         dirty?: boolean;
         notificationsOpen?: boolean;
-        openTasks: () => void;
     } = $props();
+    const actions = useActions();
 </script>
 
 <footer
@@ -29,7 +30,7 @@
         {#if dirty}<span class="shrink-0">{$t("workbench.editor.dirty")}</span>{/if}
     {/if}
     <div class="ml-auto flex shrink-0 items-center gap-1">
-        <TaskProgress onclick={openTasks} />
+        <TaskProgress onclick={() => void actions.invoke({ id: actionIDs.tasks })} />
         <NotificationCenter bind:open={notificationsOpen} />
     </div>
 </footer>

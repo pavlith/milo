@@ -1,9 +1,10 @@
 import { writable } from "svelte/store";
 import type { EditorMetadata } from "./editors/model.ts";
+import type { Reference } from "./modules/action/registry.ts";
 
 interface NavigationItem extends EditorMetadata {
     id: string;
-    run: () => void;
+    action: Reference;
     isActive?: () => boolean;
 }
 

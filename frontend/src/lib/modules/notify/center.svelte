@@ -2,13 +2,21 @@
     import { Button } from "$lib/components/ui/button";
     import * as Popover from "$lib/components/ui/popover";
     import { Toaster } from "$lib/components/ui/sonner";
+    import { useActions } from "$lib/modules/action/context";
+    import { actionIDs } from "$lib/modules/action/ids";
+    import { titleOf } from "$lib/modules/action/registry";
     import { t } from "$lib/i18n";
     import { Bell, Check, CircleAlert, CircleCheck, Info, TriangleAlert, X } from "@lucide/svelte";
+    import { onDestroy } from "svelte";
+    import { actionReference } from "../command-backend";
     import { resolveTheme } from "../settings/color-mode";
     import { preference, settings, themeID } from "../settings/state";
-    import { notificationAPI, notifications } from "./state";
+    import { notificationAPI, notificationStore } from "./state";
 
     let { open = $bindable(false) }: { open?: boolean } = $props();
+    const actions = useActions();
+    const { notifications, dispose } = notificationStore(actions);
+    onDestroy(dispose);
     let error = $state("");
     let items = $derived($notifications.status === "ready" ? ($notifications.value.items ?? []) : []);
     let unread = $derived(items.filter(({ read }) => !read).length);
@@ -25,7 +33,15 @@
     }
 </script>
 
-<Popover.Root bind:open>
+<Popover.Root
+    bind:open={
+        () => open,
+        (next) => {
+            if (next) void actions.invoke({ id: actionIDs.notifications });
+            else open = false;
+        }
+    }
+>
     <Popover.Trigger
         aria-label={unread ? $t("notify.unread", unread) : $t("notify.title")}
         title={unread ? $t("notify.unread", unread) : $t("notify.title")}
@@ -78,6 +94,27 @@
                                 <time datetime={item.time}>{new Date(item.time).toLocaleString()}</time>
                                 {#if !item.read}<span>{$t("notify.new")}</span>{/if}
                             </div>
+                            {#if item.actions?.length}
+                                <div class="flex flex-wrap gap-1 pt-1">
+                                    {#each item.actions as wire}
+                                        {@const ref = actionReference(wire)}
+                                        {@const action = $actions.find(({ id }) => id === ref.id)}
+                                        {@const disabled = !action || actions.status(ref, item.owner) !== "enabled"}
+                                        <Button
+                                            size="xs"
+                                            variant="outline"
+                                            {disabled}
+                                            title={disabled ? $t("notify.actionUnavailable") : undefined}
+                                            onclick={() => {
+                                                open = false;
+                                                void actions.invoke(ref, item.owner);
+                                            }}
+                                        >
+                                            {action ? titleOf(action.title, $t) : $t("notify.actionUnavailable")}
+                                        </Button>
+                                    {/each}
+                                </div>
+                            {/if}
                         </div>
                         <Button
                             size="icon-xs"

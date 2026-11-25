@@ -13,7 +13,7 @@ import (
 func TestHostRunsBuiltinModulesAndOwnerDisposers(t *testing.T) {
 	host := &Host{}
 	services, err := host.configureModules(core.Paths{Config: t.TempDir()}, slog.New(slog.DiscardHandler))
-	if err != nil || len(services) != 5 {
+	if err != nil || len(services) != 7 {
 		t.Fatalf("configure host: %d services, %v", len(services), err)
 	}
 	disposed := false
@@ -36,7 +36,7 @@ func TestHostRunsBuiltinModulesAndOwnerDisposers(t *testing.T) {
 	if err := host.ServiceStartup(t.Context(), application.ServiceOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"settings", "logger", "notify", "task", "test.owner"} {
+	for _, id := range []string{"settings", "logger", "notify", "task", "action", "search", "test.owner"} {
 		if entry, ok := host.modules.Lookup(id); !ok || entry.State != module.Running {
 			t.Fatalf("module %s did not start: %+v", id, entry)
 		}

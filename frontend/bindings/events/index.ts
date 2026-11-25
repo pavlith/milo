@@ -9,6 +9,11 @@ import type {} from "../github.com/wailsapp/wails/v3/internal/eventdata.js";
 import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 
 /**
+ * Name of the custom event "milo:action-catalog-changed".
+ */
+export const MiloActionCatalogChanged = "milo:action-catalog-changed";
+
+/**
  * Name of the custom event "milo:close-requested".
  */
 export const MiloCloseRequested = "milo:close-requested";
@@ -27,6 +32,11 @@ export const MiloLogChanged = "milo:log-changed";
  * Name of the custom event "milo:notification-changed".
  */
 export const MiloNotificationChanged = "milo:notification-changed";
+
+/**
+ * Name of the custom event "milo:search-catalog-changed".
+ */
+export const MiloSearchCatalogChanged = "milo:search-catalog-changed";
 
 /**
  * Name of the custom event "milo:settings-changed".

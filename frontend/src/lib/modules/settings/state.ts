@@ -55,4 +55,4 @@ export function preference(state: SettingsState, id: string): Setting | undefine
     return state.status === "ready" ? state.value.entries?.find(({ schema }) => schema.id === id) : undefined;
 }
 
-type SettingsState = ProjectionState<Snapshot> & { migrationError?: string };
+export type SettingsState = ProjectionState<Snapshot> & { migrationError?: string };

@@ -7,6 +7,9 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
     import * as Tooltip from "$lib/components/ui/tooltip";
+    import { useActions } from "$lib/modules/action/context";
+    import { actionIDs, paneAction } from "$lib/modules/action/ids";
+    import { formatShortcut } from "$lib/modules/action/shortcuts";
     import { t } from "$lib/i18n";
     import type { ResizableRegion } from "$lib/state";
     import { Copy, Minus, Search, Square, X } from "@lucide/svelte";
@@ -17,23 +20,14 @@
         appName: string;
         desktop?: typeof import("@wailsio/runtime");
         customTitlebar: boolean;
-        openPalette: () => void;
-        paletteShortcut: string;
         applicationMenu: Snippet;
         isRegionOpen: (region: ResizableRegion) => boolean;
-        toggleRegion: (region: ResizableRegion) => void;
     }
 
-    let {
-        appName,
-        desktop,
-        customTitlebar,
-        openPalette,
-        paletteShortcut,
-        applicationMenu,
-        isRegionOpen,
-        toggleRegion,
-    }: Props = $props();
+    let { appName, desktop, customTitlebar, applicationMenu, isRegionOpen }: Props = $props();
+    const actions = useActions();
+    let searchBinding = $derived($actions.find(({ id }) => id === actionIDs.search)?.binding);
+    let searchShortcut = $derived(searchBinding ? formatShortcut(searchBinding) : "");
     let header: HTMLElement;
     let maximized = $state(false);
 
@@ -123,7 +117,7 @@
                 {@render applicationMenu()}
             </div>
         </div>
-        <Tooltip.Trigger tether={tooltip} payload={`${$t("workbench.command")} (${paletteShortcut})`}>
+        <Tooltip.Trigger tether={tooltip} payload={`${$t("workbench.search")} (${searchShortcut})`}>
             {#snippet child({ props })}
                 <Button
                     {...props}
@@ -132,17 +126,23 @@
                     size="xs"
                     class="min-w-0 justify-center gap-2 rounded-sm shadow-none"
                     aria-haspopup="dialog"
-                    onclick={openPalette}
+                    data-command-center
+                    onclick={() => void actions.invoke({ id: actionIDs.search })}
                 >
                     <Search />
-                    <span class="truncate">{$t("workbench.command")}</span>
-                    <kbd class="text-muted-foreground hidden text-xs lg:inline">{paletteShortcut}</kbd>
+                    <span class="truncate">{$t("workbench.search")}</span>
+                    <kbd class="text-muted-foreground hidden text-xs lg:inline">{searchShortcut}</kbd>
                 </Button>
             {/snippet}
         </Tooltip.Trigger>
         <div class="flex min-w-max items-center gap-0.5 justify-self-end" data-header-control>
             {#each layoutOrder as region (region)}
-                {@render control($t("workbench." + region), paneIcons[region], () => toggleRegion(region), region)}
+                {@render control(
+                    $t("workbench." + region),
+                    paneIcons[region],
+                    () => void actions.invoke({ id: paneAction(region) }),
+                    region
+                )}
             {/each}
             {#if desktop && customTitlebar}
                 {@const Window = desktop.Window}

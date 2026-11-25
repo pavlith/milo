@@ -21,10 +21,12 @@ import type * as task$0 from "../../../../../milo.local/platform/modules/task/mo
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "milo:action-catalog-changed": boolean;
             "milo:close-requested": number;
             "milo:host-ready": string;
             "milo:log-changed": logger$0.Change;
             "milo:notification-changed": notify$0.Change;
+            "milo:search-catalog-changed": boolean;
             "milo:settings-changed": settings$0.Change;
             "milo:task-changed": task$0.Change;
         }

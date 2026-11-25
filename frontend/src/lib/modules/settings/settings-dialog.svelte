@@ -10,14 +10,19 @@
     import { filterSettings } from "./entries";
     import { settings, settingsAPI } from "./state";
 
-    let { open = $bindable(false) }: { open?: boolean } = $props();
+    let {
+        open = $bindable(false),
+        selectedCategory = $bindable("general"),
+    }: { open?: boolean; selectedCategory?: string } = $props();
     const categoryIcons: Record<string, typeof Settings> = {
         general: Settings,
         appearance: SunMoon,
         workbench: PanelsTopLeft,
     };
     let query = $state("");
-    let selectedCategory = $state("general");
+    $effect(() => {
+        if (open) query = "";
+    });
     let confirm = $state(false);
     let busy = $state(false);
     let error = $state("");
@@ -91,7 +96,9 @@
             <section class="flex min-h-0 min-w-0 flex-1 flex-col">
                 <div class="shrink-0 border-b px-4 py-3">
                     <div class="relative">
-                        <Search class="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Search
+                            class="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
+                        />
                         <Input
                             bind:value={query}
                             type="search"
@@ -101,7 +108,7 @@
                         />
                     </div>
                 </div>
-                <div class="scrollbar-thin min-h-0 flex-1 overflow-auto px-4 py-3">
+                <div class="min-h-0 flex-1 scrollbar-thin overflow-auto px-4 py-3">
                     {#if $settings.status === "loading"}
                         <p role="status">{$t("system.loading")}</p>
                     {:else if $settings.status === "error"}
@@ -131,7 +138,10 @@
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-3 border-b py-4 last:border-b-0">
                                 <div class="min-w-0 flex-[1_1_12rem] space-y-1">
                                     <label for={schema.id} class="text-sm font-medium">{$t(schema.label)}</label>
-                                    <p id={schema.id + "-description"} class="text-muted-foreground text-xs leading-relaxed">
+                                    <p
+                                        id={schema.id + "-description"}
+                                        class="text-muted-foreground text-xs leading-relaxed"
+                                    >
                                         {$t(schema.description)}
                                     </p>
                                 </div>

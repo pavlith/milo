@@ -83,7 +83,10 @@ func (o *Owner) finish(ctx context.Context, run *execution, summary string, fail
 }
 
 func (o *Owner) notify(severity notify.Severity, title, description string) {
-	_, err := o.service.inbox.Publish(o.id, notify.Message{Severity: severity, Title: title, Description: description})
+	_, err := o.service.inbox.Publish(o.id, notify.Message{
+		Severity: severity, Title: title, Description: description,
+		Actions: []notify.ActionRef{{ID: OpenActionID}},
+	})
 	if err != nil {
 		o.service.logs.For(o.id).Warn("could not publish task notification", "error", err)
 	}
