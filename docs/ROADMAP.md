@@ -1,38 +1,29 @@
 # Implementation roadmap
 
-Execute stages sequentially. Record status, commit reference, and verification evidence here after each stage. See [CODEX.md](CODEX.md).
+The table records shipped stages and the acceptance criteria for planned work. See [CODEX.md](CODEX.md).
 
 | Stage | Scope | Status | Required acceptance |
 | --- | --- | --- | --- |
 | 00 | Slicer workbench extraction | Completed | Domain-neutral web shell builds; no active Java/reverse-engineering/script loader code; reusable panes/tabs retained |
 | 01 | Go + Wails 3 host | Completed | Linux native dev/build; embedded frontend; clean start/stop; paths and minimal typed host bridge |
+| 01.1 | Milo rebrand and architecture consolidation | Completed | Milo Linux build and native smoke; aligned architecture, documentation and Stage 05 Task contract |
 | 02 | Seven-region workbench | Planned | All named regions; hide/resize; safe persisted layout; neutral shadcn theme |
 | 03 | Tabs/editor groups | Planned | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
 | 04 | Module lifecycle and registry | Planned | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
-| 05 | settings, notify, logger | Planned | Validated settings persistence; notifications and output panel; zero extensions required |
+| 05 | Settings, Notify, Logger & Task | Planned | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
 | 06 | action, search, palette | Planned | Commands/shortcuts, context conflicts, provider cancellation and empty/error states |
 | 07 | Contribution registry | Planned | Owner-scoped views/editors/status/actions; test module can register new types without shell changes |
 | 08 | SDK and extension host | Planned | Versioned manifest/protocol, local discovery/activation, lifecycle/permissions, isolated UI spike |
 | 09 | Independent Hello World extension | Planned | Separate packaging/install, view and editor tab, action/search/log/notify, disable/re-enable/uninstall, failure isolation |
 | 10 | Core 0.0.1 | Planned | Linux build + native smoke; empty and installed profiles; docs, license notices, known limitations |
-| 11 | Mail extension migration | Planned | Separate extension using Milo donor; no mail imports in Core; mail data/security migration plan |
+| 11 | Mail extension migration | Planned | Separate extension using the Milo mail-client donor; no mail imports in Core; mail data/security migration plan |
 | 12 | Marketplace and public distribution | Planned | Actual isolation/trust policy, package integrity, publisher validation, update rollback and registry UI |
 
-Stages 00–10 are Core MVP. Stages 11–12 are follow-up work; marketplace may be sequenced after a private/trusted Mail prototype, but public third-party packages are gated on security. Contacts/Calendar are subsequent independent extensions. Windows validation is a separate future milestone.
+Stages 00–10, including 01.1, make up Core MVP. Its mandatory modules are `settings`, `notify`, `logger`, `task`, `search`, `action` and `extensions`. Mail, Contacts and Calendar are independent follow-up extensions. Public third-party distribution depends on the isolation and trust requirements in Stage 12. Windows validation is a future milestone.
 
-## Stage 00 detail — web workbench extraction
+## Stage 00 verification
 
-1. Inspect source tree and current package scripts. Record baseline pnpm install --frozen-lockfile, pnpm check, pnpm build results (or environment blocker). Preserve MIT and third-party notices.
-2. Trace domain coupling using tab.ts, state.ts, app.svelte, content.svelte, pane/pane.svelte, pane/root.svelte, command.svelte and shortcut.ts. Extract generic tab state and view resolution first; introduce simple neutral placeholder views only.
-3. Remove the app's Java-specific menus, workspace/decompilers, JDK, bytecode graph/search, remote-file/share and dynamic script execution from the live entry and dependency graph. Remove unused domain source/assets/deps after confirming no imports. Keep shared UI and localization patterns; remove obsolete domain translation keys if safe.
-4. Keep pane/layout and basic tab interactions working. Do not add Wails, native IPC, marketplace, real modules or extension execution yet. Root frontend paths and pnpm remain for this stage. Keep name slicer until owner decides.
-5. Verify build/check, relevant tab tests (choose a lightweight existing-compatible runner if needed) and a browser smoke when possible. Update README only to describe current behavior and docs navigation; do not advertise future features as shipped.
-
-### Stage 00 verification
-
-Implementation commit subject is `feat: extract domain-neutral slicer workbench`. The root frontend now mounts the seven named regions and one editor group. Three lazy local views exercise tab and palette behavior. PaneForge handles resizing, and versioned browser storage holds pane visibility, dimensions, and tab metadata. Mode Watcher retains light, dark, and system preferences. The shadcn-svelte primitives and reusable CodeMirror editor components remain in the source tree.
-
-Java analysis, decompilers, JDK and workspace search, remote imports and sharing, and the script runtime and its SDK were removed from the source and dependency graph.
+Commit `5e467cb` extracted the domain-neutral shell from Slicer. It retained reusable pane resizing, one editor group with three lazy local views, tab metadata and theme persistence, shadcn-svelte primitives and reusable CodeMirror components. The extraction removed Java analysis, decompilers, JDK and workspace search, remote imports and sharing, and the script runtime and its SDK.
 
 Baseline on `8e08277` used Node.js 26.13.0 and pnpm 10.19.0. The final test, type-check, and build used the pinned Node.js 22.19.0 with pnpm 10.19.0.
 
@@ -45,11 +36,11 @@ Baseline on `8e08277` used Node.js 26.13.0 and pnpm 10.19.0. The final test, typ
 | `pnpm preview --host 127.0.0.1 --port 4173 --strictPort` and Chrome 157 headless smoke | — | Verified all seven regions, opening and focusing tabs, keyboard palette search, pinning, pointer and keyboard reorder, bulk and explicit close, horizontal and vertical resize, collapse, reload, corrupt-state recovery, and light/dark/system modes. No client warnings or exceptions. |
 | Production artifact and request audit | — | Source, lockfile and `dist/` contained no removed domain or loader markers. The production build emitted no WASM assets. The browser ignored the old script and remote-file query parameters and made no corresponding requests. |
 
-The current editor uses one tab instance per local view. The secondary sidebar and bottom panel contain neutral empty states. New strings use English fallback in locales where a translation is unavailable. Browsers may reserve Ctrl+W for the browser tab.
+The Stage 00 editor used one tab instance per local view. The secondary sidebar and bottom panel contain neutral empty states. New strings use English fallback in locales where a translation is unavailable. Browsers may reserve Ctrl+W for the browser tab.
 
 ## Stage 01 detail — native Linux host
 
-Implementation commit subject is `feat: host Slicer in a native Wails 3 window`. The existing frontend and its updated pnpm dependencies moved to `frontend/`. Wails 3.1.0 uses GTK4 and WebKitGTK 6.0, the Wake build configuration, and an embedded production frontend. The backend resolves config and cache paths using Go's XDG-aware path functions. The workbench uses a generated TypeScript binding and a window-scoped typed event when it mounts.
+Commit `f2810e1` added the native window under the historical Slicer name. The existing frontend and its updated pnpm dependencies moved to `frontend/`. Wails 3.1.0 uses GTK4 and WebKitGTK 6.0, the Wake build configuration, and an embedded production frontend. The backend resolves config and cache paths using Go's XDG-aware path functions. The workbench uses a generated TypeScript binding and a window-scoped typed event when it mounts.
 
 Verification used Ubuntu 26.10 on Linux amd64, Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Node.js 26.13.0 and pnpm 10.19.0.
 
@@ -62,8 +53,31 @@ Verification used Ubuntu 26.10 on Linux amd64, Go 1.27.3, GTK 4.24.1, WebKitGTK 
 | `WAILS_EXP_USE_WAKE=1 wails3 dev` and WebKit smoke | Vite served on loopback and the native window rendered the workbench. Verified the generated Go call and typed event payload, opening and closing tabs, toggling all three panes, applying light and dark styles, and selecting system mode. Ctrl+C ran the shutdown hook and exited with code 0. |
 | Production binary from a separate working directory | Embedded workbench opened with no dev server. Native accessibility actions verified tab activation and closing, visibility of all three panes, and persistence of light, dark and system preferences. Closing the window ran the service shutdown hook and exited with code 0. |
 
-GTK 4.24 emits deprecation warnings for Wails' X11 calls when compiling the dependency, and JavaScriptCore reports that it overrides an existing signal handler at startup. Closing the dev window before stopping Wake runs the service shutdown hook, but the Wake supervisor reports a backend exit and returns code 1. Stop dev with Ctrl+C in the terminal. Linux is the verified platform. Workbench preferences still use WebKit local storage. Stage 02 remains planned.
+GTK 4.24 emits deprecation warnings for Wails' X11 calls when compiling the dependency, and JavaScriptCore reports that it overrides an existing signal handler at startup. Closing the dev window before stopping Wake runs the service shutdown hook, but the Wake supervisor reports a backend exit and returns code 1. Stop dev with Ctrl+C in the terminal. Linux was the verified platform. Workbench preferences used WebKit local storage.
 
-## Cross-stage acceptance
+## Stage 01.1 verification
 
-No unused compatibility layers solely to keep the old domain alive. No unrelated dependency upgrades. New contracts get focused tests, especially lifecycle, persistence and error cases. Preserve working build at each stage, or document a reproducible pre-existing/environment issue. Test Linux runtime only when native host is available; do not claim Windows support without evidence. Record actual commands, results, important trade-offs and next stage. Keep commit boundaries meaningful and avoid force pushes.
+**Completed.** Commit `082c200` rebrands the platform as Milo. The GTK ID and XDG paths keep the platform's profile separate from the mail-client donor. Milo starts with a fresh WebKit profile. Stage 01 stored only local Workbench preferences, so this stage did not add a profile migration. The public Go namespace and canonical platform repository URL remain open. [Repository identity](../README.md#repository-and-license)
+
+Verified on Ubuntu 26.10 amd64 with Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Wails 3.1.0, Node.js 26.13.0 and pnpm 10.19.0.
+
+| Check | Result |
+| --- | --- |
+| `pnpm -C frontend install --frozen-lockfile --offline` | Passed. The lockfile's root importer contains dependencies and has no package name field. The dependency pins and lockfile stayed intact. |
+| `wails3 generate bindings -ts -i -d frontend/bindings` | Passed. Generated the service under `milo.local/platform` and the typed `milo:host-ready` event. The native build regenerated the same files. |
+| `pnpm -C frontend check`, `pnpm -C frontend test`, `pnpm -C frontend build` | Zero type errors or warnings, eight passing Workbench tests and a successful production build. |
+| `go test ./...`, `go vet ./...` | Passed. The Linux path test covers defaults and overrides for config, data and cache. |
+| `WAILS_EXP_USE_WAKE=1 wails3 build` | Produced `bin/milo` and the Wake artifact `milo`. The amd64 ELF links to GTK4 and WebKitGTK 6.0. |
+| `desktop-file-validate build/linux/io.github.pavlith.milo.platform.desktop` | Passed. |
+| Native production smoke with an isolated XDG profile and separate working directory | The embedded Workbench rendered in the Milo window and the readiness binding reached Go. Verified the GTK-scoped WebKit data and cache paths, opening and closing tabs, toggling three panes, and persistence of light, dark and system preferences. Closing the window ran the shutdown hook and exited with code 0. |
+| Repository-wide case-insensitive identifier search | Remaining Slicer references are source attribution, the current source repository URL and historical roadmap evidence. Application code, build configuration and generated bindings use Milo identifiers. |
+
+Stage 02 remains planned. Distribution packaging is outside this verification. JavaScriptCore still reports the pre-existing signal handler override during startup. The native smoke passed and exited cleanly.
+
+## Stage 05 acceptance — Settings, Notify, Logger & Task
+
+- Persist validated settings atomically, emit change events and restore a test setting after restart. Verify notification publication, read and dismiss, plus bounded, redacted log retention. Render the Settings editor, notification center and Output with zero extensions installed.
+- Register a Go background operation with an owner and namespaced task ID. Reject duplicate active IDs and unauthorized cancellation. Verify determinate and indeterminate progress and reject progress updates after finalization.
+- Cancel a running task via `context.Context`. Verify succeeded, failed and cancelled outcomes, one completion event per task, a safe failure summary, structured logging and notifications for actionable outcomes. Exercise concurrent progress, cancellation and completion.
+- Enforce the completed history limit. Verify Task service owner cleanup with test owners, including cancellation, rejection of new work for a stopping owner and release of subscriptions. Other owners remain active. Verify the same cleanup during host shutdown. Stage 08 connects extension deactivation to this contract.
+- In the native Workbench, show running progress in the footer and active tasks and recent outcomes in the bottom Panel. Exercise cancellation through generated Wails bindings. The Workbench renders Go snapshots and events. [Task contract](MODULES.md#task)

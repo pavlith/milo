@@ -1,17 +1,9 @@
-# Contributing to slicer
+# Contributing to Milo
 
-Hey, thank you for your interest in contributing to slicer!
-We're a fun project, so we won't hold your contributions to any strict standards,
-but we do have some guidelines that will help us keep things organized and make it easier for you to contribute.
+Read the [architecture](./docs/ARCHITECTURE.md) and the acceptance criteria for the stage you are working on. Discuss major features in an issue or discussion before implementing them. Keep domain features in independent extensions and keep the Workbench reusable. [Roadmap](./docs/ROADMAP.md)
 
-1. Before submitting a pull request, please make sure that your code is formatted correctly.
-   We use [Prettier](https://prettier.io/) for formatting, so you can run `pnpm -C frontend format` to format your code.
-2. Use CSS variables declared [here](./frontend/src/main.css) for colors and other styles (e.g. rounding),
-   so that we can easily change the theme later.
-3. Prefer arrow functions over regular functions, and use `const` or `let` instead of `var`.
-4. Keep workbench state operations independent of UI effects. Show UI feedback in the component that calls the operation.
-5. If you plan to implement a major feature, please open an issue/discussion about it first to discuss it.
-   This will ensure that we're on the same page and that your work won't be wasted.
-6. Workbench translations live in `frontend/src/locale/`. Add new keys to the English dictionary, which supplies the fallback for other locales.
-
-That's it, have fun contributing! Make sure to check back periodically to see if there were any changes to these guidelines.
+- Use the checked-in pnpm lockfile and the tool versions in the [README](./README.md). Run the relevant checks listed there. Format Go changes with `gofmt` and use the frontend's Prettier configuration for changed frontend files.
+- Use the semantic CSS variables in `frontend/src/main.css` for colors and styles. Keep Workbench state operations independent of UI effects and show feedback in the calling component.
+- Add translation keys to the English dictionary in `frontend/src/locale/`. Other locales fall back to English for missing keys.
+- Regenerate and review the checked-in Wails bindings when the host API or event types change. Keep those bindings inside the trusted Workbench.
+- Update the affected documentation with contract and behavior changes. Record the checks actually run and any limitations in the roadmap at stage completion. Preserve license notices and upstream credits.

@@ -1,5 +1,9 @@
 # Workbench UI contract
 
+## Implemented through Stage 01.1
+
+The native shell renders all seven regions with one editor group and three lazy-loaded local views. The primary sidebar lists those views, and a local command palette and tab menus open, focus, close, pin and reorder tabs. PaneForge resizes the primary and secondary sidebars and the bottom Panel. Layout buttons toggle those panes. The secondary sidebar and bottom Panel render empty states, and the footer shows the active view. WebKit local storage holds versioned layout and tab metadata, and Mode Watcher persists theme choice. The sections below define the remaining Workbench contract.
+
 ## Regions
 
 Stable region identifiers are header, left, primary, secondary, editor, panel, footer. They are layout roles, not domain-specific component names.
@@ -24,7 +28,7 @@ Use PaneForge for primary/secondary/panel. Editor area must not disappear if eve
 
 ## UI standards
 
-Use Svelte 5 runes for new reactive state where appropriate, TypeScript strictness, current shadcn-svelte primitives and Tailwind semantic colors. Neutral Zinc, light/dark/system via Mode Watcher. Prefer Lucide icons, accessible names, keyboard focus indicators, compact spacing and restrained transitions. No IBM Carbon dependency or theme. Avoid duplicating components or creating a second design system. Use Formsnap for forms when useful, Runed for reusable reactive helpers, Virtua for measured long-list needs, and the existing svelte-dnd-action where appropriate. Do not add libraries without a real consumer.
+Use Svelte 5 runes for new reactive state where appropriate, TypeScript strictness, current shadcn-svelte primitives and Tailwind semantic colors. Neutral Zinc, light/dark/system via Mode Watcher. Prefer Lucide icons, accessible names, keyboard focus indicators, compact spacing and restrained transitions. No IBM Carbon dependency or theme. Avoid duplicating components or creating a second design system. Reuse existing primitives and svelte-dnd-action where appropriate. Add dependencies when the implementation has a concrete consumer.
 
 ## Tab and editor model
 
@@ -60,4 +64,8 @@ Keyboard defaults: Ctrl+Tab/Shift+Ctrl+Tab next/previous; Ctrl+W closes focused 
 
 The shell accepts owner-scoped registrations for activity entries, views, editor types, header actions, panel views, footer status items and command/search registrations. Stable namespaced IDs, order, region, title and icon are metadata. Every registration returns a disposer, rejects duplicates and is removed when the owner stops. Use one shared registry contract for modules and extensions; trusted module components can lazy-import local Svelte files, extension UI goes through the isolated rendering mechanism described in [EXTENSIONS.md](EXTENSIONS.md).
 
-No direct import from extensions into App.svelte or layout components. An unloaded renderer shows a loading/error state. Empty regions collapse gracefully. A test contribution should prove the shell can accept unknown types without editing the shell.
+No direct import from extensions into `frontend/src/app.svelte` or layout components. An unloaded renderer shows a loading/error state. Empty regions collapse gracefully. A test contribution should prove the shell can accept unknown types without editing the shell.
+
+## Task UI planned for Stage 05
+
+The footer progress indicator shows running work and opens the Tasks view in the bottom Panel. The view renders determinate and indeterminate progress, recent terminal outcomes and user-safe error messages. It offers cancellation for supported tasks. Svelte reads snapshots and reacts to events through the trusted Wails bridge. Go owns scheduling, cancellation, errors and history. [Task contract](MODULES.md#task)

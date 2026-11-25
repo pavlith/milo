@@ -1,99 +1,41 @@
-# Target architecture
+# Milo architecture
 
-Read [VISION.md](VISION.md) first. The Stage 01 section describes the current host. The following sections describe the target platform.
+## Implemented through Stage 01.1
 
-## Stage 01 Linux host
+- `main.go` starts the native application. `app/` composes the window and the `Host` Wails service. Wails runs startup and shutdown hooks, serves embedded production assets, and uses the loopback Vite dev server during development.
+- The mounted Workbench invokes the generated `WorkbenchReady` binding. The host sends the typed, window-scoped `milo:host-ready` event with the product name. Generated TypeScript lives in `frontend/bindings/`. The host uses Go `slog` for lifecycle messages.
+- `core/` resolves Linux application paths under the XDG config, data and cache roots with the `milo-platform` suffix. It resolves paths without creating directories. GTK uses `io.github.pavlith.milo.platform` for desktop integration, and WebKit uses that identifier for its Linux data and cache profile.
+- `frontend/` contains the Svelte Workbench and the pnpm workspace. It renders the seven regions, one editor group and three lazy-loaded demo views. [Current Workbench behavior](WORKBENCH.md#implemented-through-stage-011)
 
-- `main.go` starts the application. The production build embeds `frontend/dist`. Wails dev serves the workbench from a loopback Vite server.
-- `app/` composes the native window and registers the `Host` Wails service. Wails runs the service startup and shutdown hooks. Closing the last window exits the desktop application. The host logs lifecycle messages with Go `slog`.
-- `core/` resolves application config and cache paths with the standard library and follows XDG overrides on Linux. WebKit manages the workbench's current UI storage. The Go service resolves the paths at startup without creating directories.
-- The mounted workbench calls the generated `WorkbenchReady` binding. The host replies to the workbench window with the typed `slicer:host-ready` event and its application name. Generated service and event bindings live in `frontend/bindings/`.
-- Layout, tabs, shortcuts, translations and theme remain in Svelte. Versioned local storage retains UI preferences. The logger, worker, task, event and script infrastructure from the original browser application was already removed during extraction. The remaining component utilities support shadcn-svelte primitives.
-- Wails window, asset, binding and event APIs cover the host. The bundled Wails log service forwards frontend logs and is unnecessary for the host's own `slog` output. Wails key/value storage and notifications are candidates for the stages that add settings and native notifications.
+## Platform boundaries
 
-## Boundaries
+| Layer | Responsibility |
+| --- | --- |
+| Core | Bootstrap, platform paths, service lifecycle, registration infrastructure, IPC and extension supervision |
+| Modules | Trusted system services and their Workbench contributions |
+| Extensions | Independently installed domain logic, domain storage and UI |
+| Workbench | Svelte rendering, layout, tabs, reactive UI state, keyboard interaction, themes and translations |
+| SDK | Versioned public schemas, protocol and clients for capability-scoped extension access |
 
-    Workbench (Svelte)
-        | typed Wails host API / events
-    Core + trusted Modules (Go / Svelte)
-        | versioned SDK protocol, capability mediation
-    Extension Host
-        | supervised IPC + isolated UI channel
-    Independently installed Extensions
+Go owns system services, background operations, persistent application data and extension supervision. Use standard Go facilities and official Wails services where they fit. Wails 3 owns native desktop integration, lifecycle hooks, service registration, generated bindings and frontend event delivery. Reuse Wails facilities before adding infrastructure, and use one authoritative implementation for each system module.
 
-Core owns startup/shutdown, registry and platform facilities. Modules supply reusable services, and may register contributions. Workbench owns presentation and user layout state. Extensions own domain logic, domain storage and domain UI. The composition root wires concrete implementations; modules depend on small interfaces rather than importing each other cyclically. The public SDK must not import internal host implementation packages or Wails-generated app bindings.
+The trusted Workbench calls a small typed Wails bridge and receives scoped events. A module may expose Go operations through that bridge and contribute a Svelte view. Untrusted extension UI must never receive privileged Wails bindings. The extension host mediates SDK calls and UI messages using session identity and capabilities. SDK clients depend on public contracts without importing host internals or generated Wails bindings. [Extension boundary](EXTENSIONS.md)
 
-## Incremental target repository layout
+Future module code belongs in `modules/`, public contracts and clients in `sdk/`, and independently buildable examples in `extensions/examples/`. Add these directories with their first consumers. Keep the host in one Go module until independent SDK packaging requires a boundary.
 
-    slicer/
-      main.go
-      go.mod
-      app/                    # composition root and Wails bindings
-      core/                   # lifecycle, registry, platform, IPC
-      modules/
-        settings/
-        notify/
-        logger/
-        search/
-        action/
-        extensions/           # management/host facade
-      sdk/
-        go/
-        typescript/
-        schemas/
-      frontend/
-        package.json
-        src/
-          App.svelte
-          lib/
-            components/ui/    # standard shadcn-svelte primitives
-            workbench/
-              header/
-              left/
-              primary/
-              secondary/
-              editor/
-              panel/
-              footer/
-              layout/
-              tabs/
-              registry/
-            modules/          # trusted module views
-      extensions/
-        examples/hello-world/ # separate build/package, never linked into host
-      docs/
+## Planned lifecycle and persistence
 
-Stage 01 moved the existing Svelte project and pnpm lockfile into `frontend/`. Keep a single Go module for the host until an independent SDK packaging consumer requires more. The example extension must be buildable and packageable independently.
+The composition root starts modules in dependency order and stops them in reverse order. Validate duplicate IDs, missing dependencies and cycles before activation. Roll back partial initialization. All registrations have owners and are disposed when the owner stops. Discovery and activation of extensions follow host readiness. Supervision contains extension failures and completes owner-scoped cleanup even if an extension exits unexpectedly.
 
-## Runtime and lifecycle
+Use contexts and bounded work in Go. The Task module tracks and cancels background work, and feeds trusted Workbench projections via Wails. Other modules use Task for operations that need user-visible lifecycle and progress. [Task contract](MODULES.md#task)
 
-- The host starts core facilities, initializes modules in dependency order, registers module contributions and starts the workbench; external extensions are discovered after registry availability.
-- Each module has explicit identity, dependencies, start/stop or equivalent lifecycle and owner-scoped registration cleanup. Duplicate IDs, missing dependencies and dependency cycles fail before partial activation. Roll back on initialization failures; stop in reverse dependency order.
-- The extension host is responsible for discovering packages, validation, activation, deactivation, supervision and cleanup. A failed extension must not prevent the host UI from opening.
-- Use context cancellation, bounded queues, timeouts and explicit ownership for background work. Avoid global mutable service locators and implicit init side effects.
-- Wails methods expose a small trusted frontend bridge for settings, commands, search, notifications, logs, contributions and extension management. Do not add Wails methods for each extension or expose privileged bindings to untrusted UI.
+Use versioned storage for settings and workspace layout. Store application data under XDG paths and scope extension data to validated owner directories. Use atomic writes for settings and SQLite where structured persistence warrants it. Store secrets via the OS keyring or another documented secure mechanism when a real consumer requires it. Keep secrets out of settings, browser storage, events and logs. Bound event payloads, use typed namespaced topics, and release subscriptions with their owners.
 
-## Persistence and events
+## Current frontend mechanisms and planned transitions
 
-Use XDG-compliant paths on Linux; separate config, data, cache and runtime/log files as appropriate. Use SQLite where structured persistence is justified; store module settings and workspace layout with a schema version. Extension-owned data resides under a validated per-extension directory. Never put tokens in browser localStorage, log output or workspace state. Secrets use the OS keyring or another explicitly documented safe mechanism; if unavailable, do not silently downgrade to plaintext. MVP may omit secrets implementation until required.
-
-Core events use typed envelopes and namespaced topics. Event payloads are bounded and must not broadcast secret data. Subscription cleanup is tied to owner lifecycle. Keep domain stores independent. The extension host mediates capabilities rather than giving an extension a direct database or registry reference.
-
-## Existing Slicer extraction map
-
-| Current path | Reuse/adapt | Remove coupling |
-| --- | --- | --- |
-| src/lib/tab.ts | IDs, positions, activation, close, pin and dynamic definitions | Entry, class, Java, scripts, welcome reinsertion and domain-specific persistence |
-| src/lib/state.ts | Versioned layout/preferences pattern | Java/decompiler/JDK state, remote-share URL fields |
-| src/lib/components/content.svelte | PaneForge layout | Domain PaneAccess and fixed assumptions |
-| src/lib/components/pane/pane.svelte | Tab headers, reorder, collapse and close modes | Entry copying, tree highlighting, global event handler |
-| src/lib/components/pane/header/item.svelte | Tab header and context menu | Domain icon adapters; nested control/accessibility issues |
-| src/lib/components/pane/root.svelte | Async view resolution | Fixed Java tab types and ScriptTab fallback |
-| src/lib/components/command.svelte and src/lib/shortcut.ts | Searchable palette, keyboard routing | JDK/workspace search and decompiler actions |
-| src/lib/script.ts and script/ | Dynamic registration concepts | Remote script execution and existing domain SDK |
-
-Slicer keeps all open pane content mounted and hides inactive panes; do not inherit this blindly. It persists only selected built-in tab types, not arbitrary documents. Its drag-and-drop and pane model do not by themselves implement arbitrary editor split groups. Adapt and test behavior rather than claiming it exists.
-
-## Performance and observability
-
-Lazy-load trusted views, avoid mounting inactive heavy views unnecessarily, retain essential editor state explicitly, virtualize long lists if needed, and avoid delayed hover transitions. Logs must be bounded, actionable and redacted. Measure startup and tab switching after the native shell exists; establish a baseline before introducing numerical performance targets.
+| Current mechanism | Planned transition |
+| --- | --- |
+| Versioned `milo.workbench` local storage and Mode Watcher via `milo.state.mode` | Stage 02 keeps safe layout restore. Stage 05 moves durable settings such as theme to Go. Move durable workspace layout and restorable tab metadata to host persistence as their contracts mature. Keep Mode Watcher for theme rendering. |
+| Static local view catalog and single editor group | Stage 03 develops the tab and editor-group model. Stage 07 introduces owner-scoped contributions for dynamic renderer resolution. |
+| Local palette command list and shortcut handlers | Stage 06 adds action and search contracts. Svelte retains keyboard routing, context handling and presentation. |
+| Host lifecycle logs and one readiness event | Keep `slog` and Wails events. Stage 05 adds bounded Output, notifications and Task state using the trusted bridge. |

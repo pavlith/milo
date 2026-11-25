@@ -1,6 +1,6 @@
-# slicer
+# Milo
 
-Slicer is a domain-neutral Linux desktop workbench built with Go, Wails 3, Svelte 5 and shadcn-svelte.
+Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The current build includes a native window and a domain-neutral workbench. System modules, the public SDK and independent extensions are planned, including future Mail, Contacts and Calendar extensions. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
 
 ## Prerequisites
 
@@ -14,17 +14,17 @@ go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
 
 ## Develop and build
 
-Run these commands from the repository root. Both Wails commands use the declarative build in `wails.yaml`, enabled with the Wake opt-in in Wails 3.1.
+Run from the repository root. Wails 3.1 uses the Wake opt-in to load the declarative build in `wails.yaml`.
 
 ```sh
 WAILS_EXP_USE_WAKE=1 wails3 dev
 WAILS_EXP_USE_WAKE=1 wails3 build
-./bin/slicer
+./bin/milo
 ```
 
-Dev mode opens the native window and serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs independently of the source tree and the dev server. Closing the last native window stops the Go host and runs the Wails service shutdown hook.
+Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
-The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Sample or Appearance. The tab context menu (**Shift+F10** on a focused tab) offers pin, reorder and close actions. Use the layout buttons to show or hide panes and drag dividers to resize them. Appearance switches between light, dark and system modes. The WebKit profile stores layout, tabs and theme preferences locally.
+The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Sample or Appearance. The tab context menu (**Shift+F10** on a focused tab) offers pin, reorder and close actions. Use the layout buttons and dividers to toggle and resize panes. Appearance switches between light, dark and system modes. The new Milo WebKit profile starts with defaults. Layout, tabs and appearance changes persist in that profile.
 
 ## Generate and verify
 
@@ -38,12 +38,12 @@ go test ./...
 go vet ./...
 ```
 
-The generated bindings are checked in so frontend-only checks can run directly. Regenerate them when Go service methods or Wails events change. The Wails build also generates bindings before compiling the frontend.
+The generated bindings are checked in for frontend-only checks. Regenerate them when Go service methods or Wails events change. The Wails build also generates bindings before compiling the frontend.
 
-`main.go` starts the desktop app. `app/` composes the native window, Wails service and typed events. `core/` holds domain-neutral platform code independent of Wails. `frontend/` holds the workbench, shadcn-svelte components, pnpm lockfile and generated TypeScript bindings. See the [architecture](./docs/ARCHITECTURE.md) and [roadmap](./docs/ROADMAP.md).
+## Repository and license
 
-## License
+This checkout continues the Slicer source project at `github.com/pavlith/slicer`. The separate `github.com/pavlith/milo` mail client is the future Mail extension donor. This platform uses the provisional checkout-local Go module path `milo.local/platform`. Choosing a public Go namespace and canonical repository URL is a separate decision before publishing Go modules or SDK packages.
 
-Slicer is licensed under the [MIT License](./LICENSE). The retained editor theme credits `@uiw/codemirror-theme-github` in its source. [Editor theme source](./frontend/src/lib/components/editor/theme.ts)
+Milo is licensed under the [MIT License](./LICENSE). The retained editor theme credits `@uiw/codemirror-theme-github`. [Editor theme source](./frontend/src/lib/components/editor/theme.ts)
 
-The donor credited Vineflower and Procyon under Apache License 2.0, and its retired illustrations to horeyearth, with all rights reserved to the artist. [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) · [Original artwork](https://www.pixiv.net/en/artworks/93602463)
+The Slicer donor credited Vineflower and Procyon under Apache License 2.0, and its retired illustrations to horeyearth, with all rights reserved to the artist. [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) · [Original artwork](https://www.pixiv.net/en/artworks/93602463)
