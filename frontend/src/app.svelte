@@ -24,8 +24,10 @@
     import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
     import { LayoutGrid, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
+    import SystemFooter from "$lib/modules/footer.svelte";
+    import { registerSystemMenu } from "$lib/modules/menu";
+    import SystemPanel from "$lib/modules/panel.svelte";
     import { registerSettingsEditor, settingsEditor } from "$lib/modules/settings/contribution";
-    import { editorStatusID, preference, settings } from "$lib/modules/settings/state";
     import SettingsTheme from "$lib/modules/settings/theme.svelte";
     import { onMount } from "svelte";
 
@@ -47,6 +49,8 @@
     let paletteOpen = $state(false);
     let desktop = $state.raw<DesktopRuntime>();
     let customTitlebar = $state(false);
+    let panelView = $state("output");
+    let notificationsOpen = $state(false);
     let appName = $state("Milo");
     let groupIndex = $derived(editor.groups.findIndex(({ id }) => id === editor.focusedGroupId));
     let active = $derived(activeTab(editor.groups[groupIndex]));
@@ -61,6 +65,10 @@
         panes = togglePane(panes, region);
         content?.applyLayout(panes, region);
     };
+    const showPanel = (view: "output" | "tasks") => {
+        panelView = view;
+        if (!panes.panel.open) toggleRegion("panel");
+    };
     const resizeRegion = (region: ResizableRegion, size: number) => (panes = resizePane(panes, region, size));
     const openPalette = () => (paletteOpen = true);
     const actions = editorActions(
@@ -69,11 +77,10 @@
         () => !modal
     );
     const menu = new MenuRegistry();
-    const resolveMenuAction = registerWorkbenchMenu(menu, {
+    const resolveWorkbenchAction = registerWorkbenchMenu(menu, {
         editorActions: actions,
         openPalette,
         paletteShortcut: formatShortcut(paletteBinding),
-        openSettings: () => open("settings"),
         openWelcome: () => open("welcome"),
         quit: () =>
             void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
@@ -81,6 +88,15 @@
         toggle: toggleRegion,
         isOpen: (region) => panes[region].open,
     });
+
+    const systemMenu = registerSystemMenu(menu, {
+        settings: () => open("settings"),
+        output: () => showPanel("output"),
+        tasks: () => showPanel("tasks"),
+        notifications: () => (notificationsOpen = true),
+    });
+    const resolveMenuAction: typeof resolveWorkbenchAction = (id, owner) =>
+        resolveWorkbenchAction(id, owner) ?? systemMenu.resolve(id, owner);
 
     $effect(() => saveWorkbench(panes, editor, registry));
 
@@ -91,7 +107,10 @@
         return () => window.removeEventListener("beforeunload", confirmUnload);
     });
 
-    onMount(() => disposeSettings);
+    onMount(() => () => {
+        systemMenu.dispose();
+        disposeSettings();
+    });
     onMount(() => manager.subscribe((workspace) => (editor = workspace)));
     onMount(() =>
         bindShortcuts([
@@ -185,21 +204,18 @@
             <LayoutGrid />
         </Button>
     </nav>
-    <Content bind:this={content} {panes} {manager} {editor} {choices} onresize={resizeRegion} />
+    <Content bind:this={content} {panes} {manager} {editor} {choices} onresize={resizeRegion}>
+        {#snippet panel()}<SystemPanel bind:view={panelView} />{/snippet}
+    </Content>
 </div>
 
-<footer
-    data-region="footer"
-    class="bg-muted/50 text-muted-foreground flex h-6 shrink-0 items-center gap-3 border-t px-3 text-xs"
->
-    {#if preference($settings, editorStatusID)?.value.enabled ?? true}
-        {#if editor.groups.length > 1}
-            <span>{$t("workbench.editor.group", groupIndex + 1)}</span>
-        {/if}
-        <span class="truncate">{active ? $t(active.title) : $t("pane.empty.title")}</span>
-        {#if active?.dirty}<span>{$t("workbench.editor.dirty")}</span>{/if}
-    {/if}
-</footer>
+<SystemFooter
+    title={active ? $t(active.title) : $t("pane.empty.title")}
+    group={editor.groups.length > 1 ? groupIndex + 1 : undefined}
+    dirty={active?.dirty}
+    bind:notificationsOpen
+    openTasks={() => showPanel("tasks")}
+/>
 
 <Command bind:open={paletteOpen} {commands} />
 

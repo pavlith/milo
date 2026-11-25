@@ -4,17 +4,18 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"milo.local/platform/core"
 	"milo.local/platform/core/module"
 )
 
 type Host struct {
-	modules *module.Manager
-	logger  *slog.Logger
-	window  *application.WebviewWindow
+	modules  *module.Manager
+	logger   *slog.Logger
+	window   *application.WebviewWindow
+	stopping atomic.Bool
 
 	closeMu        sync.Mutex
 	workbenchReady bool
@@ -24,11 +25,6 @@ type Host struct {
 }
 
 func (h *Host) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
-	paths, err := core.UserPaths()
-	if err != nil {
-		return err
-	}
-	h.logger.DebugContext(ctx, "resolved application paths", "config", paths.Config, "data", paths.Data, "cache", paths.Cache)
 	if err := h.modules.Start(ctx); err != nil {
 		return err
 	}
@@ -37,6 +33,7 @@ func (h *Host) ServiceStartup(ctx context.Context, _ application.ServiceOptions)
 }
 
 func (h *Host) ServiceShutdown() error {
+	h.stopping.Store(true)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := h.modules.Shutdown(ctx); err != nil {

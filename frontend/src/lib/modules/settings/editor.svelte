@@ -6,7 +6,8 @@
     import type { EditorRendererProps } from "$lib/editors/registry";
     import { t } from "$lib/i18n";
     import { RotateCcw } from "@lucide/svelte";
-    import { filterSettings, settings, settingsAPI } from "./state";
+    import { filterSettings } from "./entries";
+    import { settings, settingsAPI } from "./state";
 
     let { tab }: EditorRendererProps = $props();
     const categories = ["general", "appearance", "workbench"];

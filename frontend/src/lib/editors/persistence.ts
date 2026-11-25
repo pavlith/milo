@@ -1,3 +1,4 @@
+import { settingsEditorType, settingsOwner } from "../modules/settings/identity.ts";
 import {
     editorWorkspace,
     emptyGroup,
@@ -37,8 +38,8 @@ export function restoreEditorWorkspace(value: unknown, registry: EditorRegistry)
             const { id, resource, pinned, preview } = asRecord(raw);
             let { ownerId, editorTypeId } = asRecord(raw);
             if (ownerId === "milo.workbench" && editorTypeId === "milo.workbench.appearance") {
-                ownerId = "milo.settings";
-                editorTypeId = "milo.settings.editor";
+                ownerId = settingsOwner;
+                editorTypeId = settingsEditorType;
             }
             if (!validId(id) || tabIds.has(id) || typeof editorTypeId !== "string") continue;
             if (resource !== undefined && typeof resource !== "string") continue;

@@ -1,11 +1,11 @@
 import type { EditorChoice } from "$lib/editors/model";
 import type { EditorRegistry } from "$lib/editors/registry";
 import { Settings } from "@lucide/svelte";
+import { settingsEditorType, settingsOwner } from "./identity.ts";
 
-export const settingsOwner = "milo.settings";
 export const settingsEditor: EditorChoice = {
     id: "settings",
-    editorTypeId: settingsOwner + ".editor",
+    editorTypeId: settingsEditorType,
     title: "tab.settings",
     icon: Settings,
 };

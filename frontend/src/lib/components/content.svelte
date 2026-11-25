@@ -6,17 +6,18 @@
     import { activeTab, type EditorChoice, type EditorWorkspace } from "$lib/editors/model";
     import { t } from "$lib/i18n";
     import { columns, paneLimits, rows, type PanePreferences, type ResizableRegion } from "$lib/state";
-    import { untrack } from "svelte";
+    import { untrack, type Snippet } from "svelte";
 
     interface Props {
         panes: PanePreferences;
         manager: EditorManager;
         editor: EditorWorkspace;
         choices: readonly EditorChoice[];
+        panel: Snippet;
         onresize: (region: ResizableRegion, size: number) => void;
     }
 
-    let { panes, manager, editor, choices, onresize }: Props = $props();
+    let { panes, manager, editor, choices, panel, onresize }: Props = $props();
     let active = $derived(activeTab(editor.groups.find((group) => group.id === editor.focusedGroupId)));
     let horizontal: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
     let vertical: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
@@ -111,12 +112,7 @@
                 collapsible
             >
                 {#if panes.panel.open}
-                    <section aria-labelledby="panel-title" class="h-full overflow-auto">
-                        <h2 id="panel-title" class="bg-muted/50 border-b px-3 py-2 text-xs font-semibold">
-                            {$t("workbench.panel")}
-                        </h2>
-                        <p class="text-muted-foreground px-3 py-3 text-sm">{$t("workbench.panel.empty")}</p>
-                    </section>
+                    {@render panel()}
                 {/if}
             </ResizablePane>
         </ResizablePaneGroup>
