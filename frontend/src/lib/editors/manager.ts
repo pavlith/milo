@@ -1,3 +1,4 @@
+import type { EditorContext, EditorFeedback, EditorOperation, EditorSession } from "./lifecycle.ts";
 import {
     activeTab,
     editorWorkspace,
@@ -16,14 +17,25 @@ import type { EditorRegistry } from "./registry.ts";
 
 const historyLimit = 20;
 
+interface SessionRecord {
+    session?: EditorSession;
+    context: EditorContext;
+    revision: number;
+    operating: boolean;
+}
+
 export class EditorManager {
     private listeners = new Set<(workspace: EditorWorkspace) => void>();
     private workspace: EditorWorkspace;
     private closed: EditorTab[] = [];
+    private sessions = new Map<string, SessionRecord>();
+    private closing = false;
+    private shuttingDown = false;
 
     constructor(
         readonly registry: EditorRegistry,
-        workspace = editorWorkspace()
+        workspace = editorWorkspace(),
+        private readonly feedback?: EditorFeedback
     ) {
         this.workspace = workspace;
     }
@@ -47,6 +59,7 @@ export class EditorManager {
     }
 
     open(input: EditorInput, options: OpenEditorOptions = {}): EditorTab | undefined {
+        if (this.closing || this.shuttingDown) return;
         const group = this.group(options.groupId ?? this.workspace.focusedGroupId);
         const resolved = this.registry.resolve(input);
         if (!group || !resolved) return;
@@ -60,9 +73,12 @@ export class EditorManager {
                   : group.tabs.find((tab) => tab.editorTypeId === registration.id && tab.resource === input.resource);
         if (existing) {
             this.focusTab(existing.id);
-            return existing;
+            if (!options.preview) this.promote(existing.id);
+            return this.tab(existing.id);
         }
 
+        const preview = options.preview === true && registration.preview !== false;
+        const replaced = preview && group.tabs.find((tab) => tab.preview && !tab.pinned && !tab.dirty);
         const tab: EditorTab = {
             ...metadata,
             id: newEditorId(),
@@ -71,10 +87,15 @@ export class EditorManager {
             resource: input.resource,
             groupId: group.id,
             pinned: false,
-            preview: false,
+            preview,
             dirty: false,
         };
-        this.updateGroup({ ...group, tabs: [...group.tabs, tab], activeId: tab.id }, group.id);
+        let tabs = [...group.tabs, tab];
+        if (replaced) {
+            tabs = group.tabs.map((item) => (item.id === replaced.id ? tab : item));
+            this.disposeSession(replaced.id);
+        }
+        this.updateGroup({ ...group, tabs, activeId: tab.id }, group.id);
         return tab;
     }
 
@@ -97,7 +118,7 @@ export class EditorManager {
         this.focusTab(tabs[(index + direction + tabs.length) % tabs.length].id);
     }
 
-    close(groupId: string, mode: CloseMode, id?: string): boolean {
+    async close(groupId: string, mode: CloseMode, id?: string): Promise<boolean> {
         const group = this.group(groupId);
         if (!group) return false;
         const index = group.tabs.findIndex((tab) => tab.id === id);
@@ -111,18 +132,74 @@ export class EditorManager {
         }[mode].filter((tab) => mode === "self" || !tab.pinned);
         if (!targets.length) return false;
 
-        this.rememberClosed(targets, group);
-        this.updateGroup(removeTabs(group, new Set(targets.map((tab) => tab.id))));
-        return true;
+        return this.protectClose(targets, () => this.removeClosed(targets));
+    }
+
+    closeOwner(ownerId: string): Promise<boolean> {
+        const tabs = this.workspace.groups.flatMap((group) => group.tabs.filter((tab) => tab.ownerId === ownerId));
+        return this.protectClose(tabs, () => this.removeClosed(tabs));
+    }
+
+    requestShutdown(closeWindow: () => Promise<unknown>): Promise<boolean> {
+        return this.protectClose(
+            this.workspace.groups.flatMap((group) => group.tabs),
+            async () => {
+                this.shuttingDown = true;
+                try {
+                    await closeWindow();
+                } catch (error) {
+                    this.shuttingDown = false;
+                    throw error;
+                }
+                for (const id of this.sessions.keys()) this.disposeSession(id);
+            }
+        );
+    }
+
+    promote(id: string): void {
+        if (this.closing || this.shuttingDown) return;
+        this.changeTab(id, (tab) => (tab.preview ? { ...tab, preview: false } : tab));
+    }
+
+    context(id: string): EditorContext {
+        const existing = this.sessions.get(id);
+        if (existing) return existing.context;
+        const tab = this.tab(id);
+        const registration = tab && this.registry.get(tab.editorTypeId);
+        if (!tab || !registration || registration.ownerId !== tab.ownerId) throw new Error("Editor is unavailable");
+
+        const record: SessionRecord = {
+            revision: 0,
+            operating: false,
+            context: { save: () => this.operate(id, "save"), discard: () => this.operate(id, "discard") },
+        };
+        this.sessions.set(id, record);
+        try {
+            record.session = registration.createSession?.(tab, (dirty) => {
+                if (this.sessions.get(id) !== record || this.shuttingDown) return;
+                record.revision++;
+                this.changeTab(id, (item) =>
+                    item.dirty !== dirty || (dirty && item.preview)
+                        ? { ...item, dirty, preview: item.preview && !dirty }
+                        : item
+                );
+            });
+            record.context.session = record.session;
+            return record.context;
+        } catch (error) {
+            this.sessions.delete(id);
+            throw error;
+        }
     }
 
     pin(id: string, pinned: boolean): void {
+        if (this.closing || this.shuttingDown) return;
         const group = this.findGroup(id);
         const tab = group?.tabs.find((item) => item.id === id);
         if (!group || !tab || tab.pinned === pinned) return;
         const tabs = group.tabs.filter((item) => item.id !== id);
         const boundary = tabs.filter((item) => item.pinned).length;
-        tabs.splice(boundary, 0, { ...tab, pinned });
+        tabs.splice(boundary, 0, { ...tab, pinned, preview: false });
         this.updateGroup({ ...group, tabs });
     }
 
@@ -142,6 +219,7 @@ export class EditorManager {
     }
 
     reorder(groupId: string, order: readonly string[]): void {
+        if (this.closing || this.shuttingDown) return;
         const group = this.group(groupId);
         if (!group || order.length !== group.tabs.length || new Set(order).size !== order.length) return;
         const byId = new Map(group.tabs.map((tab) => [tab.id, tab]));
@@ -156,19 +234,114 @@ export class EditorManager {
     }
 
     reopen(): EditorTab | undefined {
+        if (this.closing || this.shuttingDown || !this.closed.length) return;
+        const before = this.workspace;
         while (this.closed.length) {
             const previous = this.closed.shift()!;
             const tab = this.open(previous, {
                 groupId: this.group(previous.groupId)?.id ?? this.focusedGroup.id,
                 newInstance: true,
             });
-            if (!tab) {
-                this.update({ ...this.workspace });
-                continue;
-            }
+            if (!tab) continue;
             if (previous.pinned) this.pin(tab.id, true);
-            return this.findGroup(tab.id)?.tabs.find((item) => item.id === tab.id);
+            if (before === this.workspace) this.update({ ...this.workspace });
+            return this.tab(tab.id);
         }
+        this.update({ ...this.workspace });
+    }
+
+    private async protectClose(tabs: readonly EditorTab[], finish: () => void | Promise<void>): Promise<boolean> {
+        if (this.closing || this.shuttingDown || tabs.some(({ id }) => this.sessions.get(id)?.operating)) return false;
+
+        const revisions = tabs.map(({ id }) => this.sessions.get(id)?.revision ?? 0);
+        const unchanged = () =>
+            tabs.every(({ id }, index) => (this.sessions.get(id)?.revision ?? 0) === revisions[index]);
+        this.closing = true;
+        try {
+            const saves: string[] = [];
+            const discards: string[] = [];
+            for (const tab of tabs) {
+                if (!tab.dirty) continue;
+                const session = this.sessions.get(tab.id)?.session;
+                const decision = await this.feedback?.confirm({ tab, canSave: !!session?.save });
+                if (!decision || decision === "cancel" || !unchanged()) return false;
+                if (decision === "save") saves.push(tab.id);
+                else if (session?.discard) discards.push(tab.id);
+            }
+            for (const id of saves) {
+                if (!(await this.perform(id, "save")) || !unchanged()) return false;
+            }
+            for (const id of discards) {
+                if (!(await this.perform(id, "discard")) || !unchanged()) return false;
+            }
+            await finish();
+            return true;
+        } finally {
+            this.closing = false;
+        }
+    }
+
+    private async operate(id: string, operation: EditorOperation): Promise<boolean> {
+        if (this.closing || this.shuttingDown) return false;
+        return this.perform(id, operation);
+    }
+
+    private async perform(id: string, operation: EditorOperation): Promise<boolean> {
+        const tab = this.tab(id);
+        const record = this.sessions.get(id);
+        const session = record?.session;
+        if (!tab?.dirty || !record || !session || record.operating) return false;
+
+        const revision = record.revision;
+        record.operating = true;
+        try {
+            const result = await session[operation]?.();
+            if (result === true && record.revision === revision) {
+                this.changeTab(id, (item) => ({ ...item, dirty: false }));
+                return true;
+            }
+        } catch {
+            // A provider failure leaves the editor open with its draft.
+        } finally {
+            record.operating = false;
+        }
+        this.feedback?.failed(tab, operation);
+        return false;
+    }
+
+    private removeClosed(tabs: readonly EditorTab[]): void {
+        const removed = new Set(tabs.map((tab) => tab.id));
+        const groups = this.workspace.groups.map((group) => {
+            const targets = group.tabs.filter((tab) => removed.has(tab.id));
+            if (targets.length) this.rememberClosed(targets, group);
+            return removeTabs(group, removed);
+        });
+        for (const id of removed) this.disposeSession(id);
+        this.update({ ...this.workspace, groups });
+    }
+
+    private disposeSession(id: string): void {
+        const record = this.sessions.get(id);
+        this.sessions.delete(id);
+        try {
+            record?.session?.dispose?.();
+        } catch (error) {
+            console.error("Could not dispose editor session", error);
+        }
+    }
+
+    private tab(id: string): EditorTab | undefined {
+        return this.findGroup(id)?.tabs.find((tab) => tab.id === id);
+    }
+
+    private changeTab(id: string, change: (tab: EditorTab) => EditorTab): void {
+        const group = this.findGroup(id);
+        const tab = group?.tabs.find((item) => item.id === id);
+        if (!group || !tab) return;
+
+        const updated = change(tab);
+        if (updated !== tab)
+            this.updateGroup({ ...group, tabs: group.tabs.map((item) => (item === tab ? updated : item)) });
     }
 
     private rememberClosed(tabs: readonly EditorTab[], group: EditorGroup): void {

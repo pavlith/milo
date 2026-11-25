@@ -1,8 +1,10 @@
 import type { Component } from "svelte";
+import type { EditorContext, EditorSession } from "./lifecycle.ts";
 import type { EditorInput, EditorMetadata, EditorTab, ResourceRef } from "./model.ts";
 
 export interface EditorRendererProps {
     tab: EditorTab;
+    context: EditorContext;
 }
 
 export type EditorRenderer = Component<EditorRendererProps>;
@@ -12,6 +14,7 @@ interface EditorRegistrationBase extends EditorMetadata {
     ownerId: string;
     load: () => Promise<{ default: EditorRenderer }>;
     preview?: boolean;
+    createSession?: (input: EditorInput, onChange: (dirty: boolean) => void) => EditorSession;
 }
 
 export type EditorRegistration = EditorRegistrationBase &
@@ -97,6 +100,7 @@ export class EditorRegistry {
     }
 
     resolveRenderer(entry: EditorRegistration): Promise<EditorRenderer> {
+        if (this.get(entry.id) !== entry) return Promise.reject(new Error(`Editor type ${entry.id} is unavailable`));
         const cached = this.renderers.get(entry);
         if (cached) return cached;
         const renderer = Promise.resolve()

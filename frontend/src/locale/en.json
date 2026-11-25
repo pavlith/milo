@@ -66,5 +66,15 @@
     "workbench.tab.moveRight": "Move right",
     "workbench.openWelcome": "Open Welcome",
     "workbench.view.unavailable": "This view could not be loaded.",
-    "workbench.view.retry": "Retry"
+    "workbench.view.retry": "Retry",
+    "workbench.editor.unsaved": "Unsaved changes",
+    "workbench.editor.confirmSave": "Save changes to “{0}” before closing?",
+    "workbench.editor.confirmDiscard": "Discard unsaved changes to “{0}” before closing?",
+    "workbench.editor.cancel": "Cancel",
+    "workbench.editor.discard": "Discard changes",
+    "workbench.editor.save": "Save",
+    "workbench.editor.operationFailed": "Editor changes are still open",
+    "workbench.editor.failed.save": "Changes to “{0}” were not saved.",
+    "workbench.editor.failed.discard": "Changes to “{0}” could not be discarded.",
+    "workbench.editor.ok": "OK"
 }
