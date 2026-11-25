@@ -414,7 +414,7 @@ test("workspace migrates v1 and restores only registration-supported metadata", 
         config
     );
     const legacyGroup = fromV1.editor.groups[0];
-    assert.equal(fromV1.version, 2);
+    assert.equal(fromV1.version, 3);
     assert.deepEqual(fromV1.panes.primary, { open: false, size: 30 });
     assert.deepEqual(
         legacyGroup.tabs.map(({ editorTypeId }) => editorTypeId),
@@ -432,13 +432,11 @@ test("workspace migrates v1 and restores only registration-supported metadata", 
     const last = editor.open(resource("beta"), { preview: true });
     editor.open(resource("temporary"));
     editor.focusTab(last.id);
-    editor.resizeGroups(63);
     const saved = serializeEditorWorkspace(editor.state, registry);
     const serialized = JSON.stringify({ version: 2, editor: saved });
     assert.doesNotMatch(serialized, /dirty|title|icon|temporary/);
     const restored = restoreWorkbench(JSON.parse(serialized), config).editor;
     assert.equal(restored.focusedGroupId, last.groupId);
-    assert.equal(restored.leftSize, 63);
     assert.equal(restored.groups[1].activeId, last.id);
     assert.equal(restored.groups[1].tabs[1].preview, true);
     assert.equal(restored.groups[0].tabs[0].dirty, false);
@@ -455,7 +453,6 @@ test("invalid workspace recovers safely from duplicate IDs, missing types and un
             version: 2,
             editor: {
                 focusedGroupId: "unknown",
-                leftSize: -1,
                 groups: [
                     null,
                     {
@@ -479,7 +476,6 @@ test("invalid workspace recovers safely from duplicate IDs, missing types and un
         config
     ).editor;
     assert.equal(result.focusedGroupId, "first");
-    assert.equal(result.leftSize, 50);
     assert.deepEqual(result.groups.map(ids), [["available", "second-preview", "settings"], []]);
     assert.equal(result.groups[0].activeId, "available");
     assert.equal(result.groups[0].tabs[0].title, "alpha");

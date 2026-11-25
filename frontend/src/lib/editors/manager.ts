@@ -6,7 +6,6 @@ import {
     newEditorId,
     pinnedFirst,
     removeTabs,
-    splitMinSize,
     type CloseMode,
     type Direction,
     type EditorGroup,
@@ -194,12 +193,6 @@ export class EditorManager {
             for (const tab of targets) this.disposeSession(tab.id);
             this.update({ ...this.workspace, groups: [{ ...remaining, tabs, activeId }], focusedGroupId: other.id });
         });
-    }
-
-    resizeGroups(size: number): void {
-        if (this.workspace.groups.length !== 2 || !Number.isFinite(size)) return;
-        const leftSize = Math.min(100 - splitMinSize, Math.max(splitMinSize, size));
-        if (leftSize !== this.workspace.leftSize) this.update({ ...this.workspace, leftSize });
     }
 
     private addRightGroup(): EditorGroup {

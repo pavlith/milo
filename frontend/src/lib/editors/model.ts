@@ -28,7 +28,6 @@ export interface EditorGroup {
 export interface EditorWorkspace {
     groups: readonly EditorGroup[];
     focusedGroupId: string;
-    leftSize: number;
 }
 
 export interface EditorInput {
@@ -58,7 +57,7 @@ export function emptyGroup(id = mainGroupId): EditorGroup {
 }
 
 export function editorWorkspace(): EditorWorkspace {
-    return { groups: [emptyGroup()], focusedGroupId: mainGroupId, leftSize: 50 };
+    return { groups: [emptyGroup()], focusedGroupId: mainGroupId };
 }
 
 export function activeTab(group: EditorGroup | undefined): EditorTab | undefined {

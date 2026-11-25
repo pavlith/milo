@@ -5,49 +5,68 @@
     import type { EditorManager } from "$lib/editors/manager";
     import { activeTab, type EditorChoice, type EditorWorkspace } from "$lib/editors/model";
     import { t } from "$lib/i18n";
-    import { columns, paneLimits, rows, type PanePreferences, type ResizableRegion } from "$lib/state";
+    import { paneDefaults, type PanePreferences, type ResizableRegion } from "$lib/state";
     import { untrack, type Snippet } from "svelte";
 
+    import { initialPaneLayout } from "./initial-pane-layout";
+
     interface Props {
-        panes: PanePreferences;
+        initialPanes: PanePreferences;
+        openRegions: Record<ResizableRegion, boolean>;
+        legacySplitSize?: number;
         manager: EditorManager;
         editor: EditorWorkspace;
         choices: readonly EditorChoice[];
         panel: Snippet;
-        onresize: (region: ResizableRegion, size: number) => void;
+        onvisibilitychange: (region: ResizableRegion, open: boolean) => void;
     }
 
-    let { panes, manager, editor, choices, panel, onresize }: Props = $props();
+    let { initialPanes, openRegions, legacySplitSize, manager, editor, choices, panel, onvisibilitychange }: Props =
+        $props();
     let active = $derived(activeTab(editor.groups.find((group) => group.id === editor.focusedGroupId)));
-    let horizontal: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
-    let vertical: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
-
-    const initialColumns = untrack(() => columns(panes));
-    const initialRows = untrack(() => rows(panes));
-
-    export const applyLayout = (next: PanePreferences, region: ResizableRegion) => {
-        if (region === "panel") vertical?.setLayout(rows(next));
-        else horizontal?.setLayout(columns(next));
+    type Pane = ReturnType<typeof ResizablePane>;
+    let primary: Pane | undefined = $state();
+    let secondary: Pane | undefined = $state();
+    let bottom: Pane | undefined = $state();
+    const groups = {
+        primary: "milo.workbench.body",
+        panel: "milo.workbench.workspace",
+        secondary: "milo.workbench.main",
     };
+    const getPane = (region: ResizableRegion) => ({ primary, secondary, panel: bottom })[region];
+    const initialize = untrack(() => ({
+        primary: initialPaneLayout(groups.primary, () => primary, initialPanes.primary),
+        panel: initialPaneLayout(groups.panel, () => bottom, initialPanes.panel),
+        secondary: initialPaneLayout(groups.secondary, () => secondary, initialPanes.secondary),
+    }));
 
-    const resizeColumns = ([primary, , secondary]: number[]) => {
-        onresize("primary", primary);
-        onresize("secondary", secondary);
-    };
+    export function setOpen(region: ResizableRegion, open: boolean) {
+        const pane = getPane(region);
+        if (open) pane?.expand();
+        else pane?.collapse();
+    }
 </script>
 
-<ResizablePaneGroup bind:this={horizontal} direction="horizontal" class="min-w-0 flex-1" onLayoutChange={resizeColumns}>
+<ResizablePaneGroup
+    id={groups.primary}
+    autoSaveId={groups.primary}
+    direction="horizontal"
+    class="min-h-0 min-w-0 flex-1"
+    onLayoutChange={initialize.primary}
+>
     <ResizablePane
+        bind:this={primary}
         id="primary"
         data-region="primary"
         order={1}
-        defaultSize={initialColumns[0]}
-        minSize={paneLimits.primary.min}
-        maxSize={paneLimits.primary.max}
-        collapsedSize={0}
+        defaultSize={paneDefaults.primary.size}
+        minSize={paneDefaults.primary.min}
+        maxSize={paneDefaults.primary.max}
         collapsible
+        onCollapse={() => onvisibilitychange("primary", false)}
+        onExpand={() => onvisibilitychange("primary", true)}
     >
-        {#if panes.primary.open}
+        <div class="h-full min-w-0 overflow-hidden" inert={!openRegions.primary}>
             <nav aria-label={$t("workbench.views")} class="bg-sidebar h-full overflow-auto">
                 <h2 class="px-3 pt-3 pb-2 text-xs font-semibold">{$t("workbench.views")}</h2>
                 <div class="space-y-0.5 px-2">
@@ -68,75 +87,74 @@
                     {/each}
                 </div>
             </nav>
-        {/if}
+        </div>
     </ResizablePane>
-    <ResizableHandle
-        disabled={!panes.primary.open}
-        class={panes.primary.open ? undefined : "hidden"}
-        aria-label={$t("workbench.resize.primary")}
-    />
-    <ResizablePane
-        order={2}
-        defaultSize={initialColumns[1]}
-        minSize={100 - paneLimits.primary.max - paneLimits.secondary.max}
-    >
+    <ResizableHandle aria-label={$t("workbench.resize.primary")} />
+    <ResizablePane id="workspace" order={2} minSize={100 - paneDefaults.primary.max}>
         <ResizablePaneGroup
-            bind:this={vertical}
+            id={groups.panel}
+            autoSaveId={groups.panel}
             direction="vertical"
-            onLayoutChange={([, panel]) => onresize("panel", panel)}
+            onLayoutChange={initialize.panel}
         >
-            <ResizablePane
-                id="editor"
-                data-region="editor"
-                order={1}
-                defaultSize={initialRows[0]}
-                minSize={100 - paneLimits.panel.max}
-            >
-                <main class="h-full" aria-label={$t("workbench.editor")}>
-                    <EditorArea {manager} workspace={editor} {choices} />
-                </main>
+            <ResizablePane id="main-area" order={1} minSize={100 - paneDefaults.panel.max}>
+                <ResizablePaneGroup
+                    id={groups.secondary}
+                    autoSaveId={groups.secondary}
+                    direction="horizontal"
+                    onLayoutChange={initialize.secondary}
+                >
+                    <ResizablePane
+                        id="editor"
+                        data-region="editor"
+                        order={1}
+                        minSize={100 - paneDefaults.secondary.max}
+                    >
+                        <main class="h-full min-w-0 overflow-hidden" aria-label={$t("workbench.editor")}>
+                            <EditorArea {manager} workspace={editor} {choices} {legacySplitSize} />
+                        </main>
+                    </ResizablePane>
+                    <ResizableHandle aria-label={$t("workbench.resize.secondary")} />
+                    <ResizablePane
+                        bind:this={secondary}
+                        id="secondary"
+                        data-region="secondary"
+                        order={2}
+                        defaultSize={paneDefaults.secondary.size}
+                        minSize={paneDefaults.secondary.min}
+                        maxSize={paneDefaults.secondary.max}
+                        collapsible
+                        onCollapse={() => onvisibilitychange("secondary", false)}
+                        onExpand={() => onvisibilitychange("secondary", true)}
+                    >
+                        <div class="h-full min-w-0 overflow-hidden" inert={!openRegions.secondary}>
+                            <aside aria-labelledby="secondary-title" class="bg-sidebar h-full overflow-auto">
+                                <h2 id="secondary-title" class="px-3 pt-3 pb-2 text-xs font-semibold">
+                                    {$t("workbench.secondary")}
+                                </h2>
+                                <p class="text-muted-foreground px-3 text-sm">{$t("workbench.secondary.empty")}</p>
+                            </aside>
+                        </div>
+                    </ResizablePane>
+                </ResizablePaneGroup>
             </ResizablePane>
-            <ResizableHandle
-                disabled={!panes.panel.open}
-                class={panes.panel.open ? undefined : "hidden"}
-                aria-label={$t("workbench.resize.panel")}
-            />
+            <ResizableHandle aria-label={$t("workbench.resize.panel")} />
             <ResizablePane
+                bind:this={bottom}
                 id="panel"
                 data-region="panel"
                 order={2}
-                defaultSize={initialRows[1]}
-                minSize={paneLimits.panel.min}
-                maxSize={paneLimits.panel.max}
-                collapsedSize={0}
+                defaultSize={paneDefaults.panel.size}
+                minSize={paneDefaults.panel.min}
+                maxSize={paneDefaults.panel.max}
                 collapsible
+                onCollapse={() => onvisibilitychange("panel", false)}
+                onExpand={() => onvisibilitychange("panel", true)}
             >
-                {#if panes.panel.open}
+                <div class="h-full min-w-0 overflow-hidden" inert={!openRegions.panel}>
                     {@render panel()}
-                {/if}
+                </div>
             </ResizablePane>
         </ResizablePaneGroup>
-    </ResizablePane>
-    <ResizableHandle
-        disabled={!panes.secondary.open}
-        class={panes.secondary.open ? undefined : "hidden"}
-        aria-label={$t("workbench.resize.secondary")}
-    />
-    <ResizablePane
-        id="secondary"
-        data-region="secondary"
-        order={3}
-        defaultSize={initialColumns[2]}
-        minSize={paneLimits.secondary.min}
-        maxSize={paneLimits.secondary.max}
-        collapsedSize={0}
-        collapsible
-    >
-        {#if panes.secondary.open}
-            <aside aria-labelledby="secondary-title" class="bg-sidebar h-full overflow-auto">
-                <h2 id="secondary-title" class="px-3 pt-3 pb-2 text-xs font-semibold">{$t("workbench.secondary")}</h2>
-                <p class="text-muted-foreground px-3 text-sm">{$t("workbench.secondary.empty")}</p>
-            </aside>
-        {/if}
     </ResizablePane>
 </ResizablePaneGroup>

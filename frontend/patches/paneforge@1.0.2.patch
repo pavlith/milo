@@ -1,0 +1,62 @@
+diff --git a/dist/paneforge.svelte.js b/dist/paneforge.svelte.js
+index 26c5fbf9e2d7de99e797f89e980e38fed338aad9..26643ebfcfc524d93d7b75c0b0714725e3e49a1e 100644
+--- a/dist/paneforge.svelte.js
++++ b/dist/paneforge.svelte.js
+@@ -99,6 +99,13 @@ export class PaneGroupState {
+         });
+     }
+     setLayout = (newLayout) => {
++        this.panesArray.forEach((pane, index) => {
++            const { collapsible, collapsedSize = 0 } = pane.constraints;
++            const previousSize = this.layout[index];
++            if (collapsible && previousSize > collapsedSize && newLayout[index] === collapsedSize) {
++                this.paneSizeBeforeCollapseMap.set(pane.opts.id.current, previousSize);
++            }
++        });
+         this.layout = newLayout;
+     };
+     registerResizeHandle = (dragHandleId) => {
+@@ -345,33 +352,17 @@ export class PaneGroupState {
+                 if (e.defaultPrevented || e.key !== "Enter")
+                     return;
+                 e.preventDefault();
+-                const paneDataArray = this.panesArray;
+-                const index = paneDataArray.findIndex((paneData) => paneData.opts.id.current === idBefore);
+-                if (index < 0)
+-                    return;
+-                const paneData = paneDataArray[index];
+-                assert(paneData);
+-                const layout = this.layout;
+-                const size = layout[index];
+-                const { collapsedSize = 0, collapsible, minSize = 0 } = paneData.constraints;
+-                if (!(size != null && collapsible))
++                const pane = this.panesArray.find(
++                    (item) => item.opts.id.current === idBefore && item.constraints.collapsible
++                ) ?? this.panesArray.find(
++                    (item) => item.opts.id.current === idAfter && item.constraints.collapsible
++                );
++                if (!pane)
+                     return;
+-                const nextLayout = adjustLayoutByDelta({
+-                    delta: areNumbersAlmostEqual(size, collapsedSize)
+-                        ? minSize - size
+-                        : collapsedSize - size,
+-                    layout,
+-                    paneConstraints: paneDataArray.map((paneData) => paneData.constraints),
+-                    pivotIndices: getPivotIndices({
+-                        groupId,
+-                        dragHandleId: handleId,
+-                        domContext: this.domContext,
+-                    }),
+-                    trigger: "keyboard",
+-                });
+-                if (layout !== nextLayout) {
+-                    this.layout = nextLayout;
+-                }
++                if (this.isPaneCollapsed(pane))
++                    this.expandPane(pane);
++                else
++                    this.collapsePane(pane);
+             };
+             const unsubListener = addEventListener(handle, "keydown", onKeydown);
+             return () => {

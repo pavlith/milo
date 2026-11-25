@@ -5,7 +5,6 @@ import {
     mainGroupId,
     newEditorId,
     pinnedFirst,
-    splitMinSize,
     type EditorGroup,
     type EditorTab,
     type EditorWorkspace,
@@ -13,9 +12,6 @@ import {
 import type { EditorRegistry } from "./registry.ts";
 
 const validId = (id: unknown): id is string => typeof id === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(id);
-const validSize = (size: unknown): size is number =>
-    typeof size === "number" && size >= splitMinSize && size <= 100 - splitMinSize;
-
 export function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -75,14 +71,12 @@ export function restoreEditorWorkspace(value: unknown, registry: EditorRegistry)
     return {
         groups,
         focusedGroupId: groups.find((group) => group.id === input.focusedGroupId)?.id ?? groups[0].id,
-        leftSize: validSize(input.leftSize) ? input.leftSize : 50,
     };
 }
 
 export function serializeEditorWorkspace(workspace: EditorWorkspace, registry: EditorRegistry) {
     return {
         focusedGroupId: workspace.focusedGroupId,
-        leftSize: workspace.leftSize,
         groups: workspace.groups.map(({ id, activeId, tabs }) => ({
             id,
             activeId,

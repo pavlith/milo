@@ -13,14 +13,7 @@
     import { t } from "$lib/i18n";
     import { MenuRegistry } from "$lib/menu";
     import { bindShortcuts, formatShortcut } from "$lib/shortcut";
-    import {
-        loadWorkbench,
-        resizableRegions,
-        resizePane,
-        saveWorkbench,
-        togglePane,
-        type ResizableRegion,
-    } from "$lib/state";
+    import { loadWorkbench, resizableRegions, saveWorkbench, type ResizableRegion } from "$lib/state";
     import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
     import { LayoutGrid, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
@@ -43,7 +36,7 @@
     const dialog = new EditorCloseDialog();
     const manager = new EditorManager(registry, initial.editor, dialog);
 
-    let panes = $state.raw(initial.panes);
+    const openRegions = $state({ primary: false, panel: false, secondary: false });
     let editor = $state.raw(manager.state);
     let content: ReturnType<typeof Content> | undefined = $state();
     let paletteOpen = $state(false);
@@ -62,14 +55,12 @@
         if (choice) manager.open(choice);
     };
     const toggleRegion = (region: ResizableRegion) => {
-        panes = togglePane(panes, region);
-        content?.applyLayout(panes, region);
+        content?.setOpen(region, !openRegions[region]);
     };
     const showPanel = (view: "output" | "tasks") => {
         panelView = view;
-        if (!panes.panel.open) toggleRegion("panel");
+        content?.setOpen("panel", true);
     };
-    const resizeRegion = (region: ResizableRegion, size: number) => (panes = resizePane(panes, region, size));
     const openPalette = () => (paletteOpen = true);
     const actions = editorActions(
         manager,
@@ -86,7 +77,7 @@
             void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
         isDesktop: () => !!desktop,
         toggle: toggleRegion,
-        isOpen: (region) => panes[region].open,
+        isOpen: (region) => openRegions[region],
     });
 
     const systemMenu = registerSystemMenu(menu, {
@@ -98,7 +89,7 @@
     const resolveMenuAction: typeof resolveWorkbenchAction = (id, owner) =>
         resolveWorkbenchAction(id, owner) ?? systemMenu.resolve(id, owner);
 
-    $effect(() => saveWorkbench(panes, editor, registry));
+    $effect(() => saveWorkbench(editor, registry, initial.legacySplitSize));
 
     $effect(() => {
         if (!dirty || location.protocol === "wails:") return;
@@ -142,7 +133,7 @@
         ...resizableRegions.map((region) => ({
             id: "toggle." + region,
             label: $t(
-                panes[region].open ? "workbench.command.hide" : "workbench.command.show",
+                openRegions[region] ? "workbench.command.hide" : "workbench.command.show",
                 $t("workbench." + region)
             ),
             icon: paneIcons[region],
@@ -166,7 +157,7 @@
         title={label}
         aria-label={label}
         aria-controls={region}
-        aria-pressed={panes[region].open}
+        aria-pressed={openRegions[region]}
         class="aria-pressed:border-input aria-pressed:bg-background size-7 rounded-sm transition-none active:translate-y-0"
         onclick={() => toggleRegion(region)}
     >
@@ -198,13 +189,22 @@
             title={$t("workbench.views")}
             aria-label={$t("workbench.views")}
             aria-controls="primary"
-            aria-pressed={panes.primary.open}
+            aria-pressed={openRegions.primary}
             onclick={() => toggleRegion("primary")}
         >
             <LayoutGrid />
         </Button>
     </nav>
-    <Content bind:this={content} {panes} {manager} {editor} {choices} onresize={resizeRegion}>
+    <Content
+        bind:this={content}
+        initialPanes={initial.panes}
+        legacySplitSize={initial.legacySplitSize}
+        {openRegions}
+        {manager}
+        {editor}
+        {choices}
+        onvisibilitychange={(region, open) => (openRegions[region] = open)}
+    >
         {#snippet panel()}<SystemPanel bind:view={panelView} />{/snippet}
     </Content>
 </div>
