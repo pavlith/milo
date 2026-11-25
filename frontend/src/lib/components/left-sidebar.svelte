@@ -16,20 +16,23 @@
         select: (activity: Activity) => void;
         openSettings: () => void;
     } = $props();
-    const buttonClass = "justify-center p-0";
+    const buttonClass =
+        "relative h-9 justify-center rounded-md p-0 text-sidebar-foreground/70 hover:text-sidebar-foreground data-active:text-sidebar-foreground [&_svg]:size-5";
+    const activityButtonClass =
+        `${buttonClass} data-active:before:bg-sidebar-foreground data-active:before:absolute data-active:before:inset-y-2 data-active:before:start-0 data-active:before:w-0.5 data-active:before:rounded-full`;
 </script>
 
 <Sidebar.Root data-region="left" class="w-(--sidebar-width-icon) shrink-0 border-e">
     <Sidebar.Content>
-        <Sidebar.Group role="navigation" aria-label={$t("workbench.left")}>
+        <Sidebar.Group class="px-1.5 py-2" role="navigation" aria-label={$t("workbench.left")}>
             <Sidebar.GroupContent>
-                <Sidebar.Menu>
+                <Sidebar.Menu class="gap-1">
                     {#each activities as activity (activity.id)}
                         {@const Icon = activity.icon ?? LayoutGrid}
                         {@const label = $t(activity.title)}
                         <Sidebar.MenuItem>
                             <Sidebar.MenuButton
-                                class={buttonClass}
+                                class={activityButtonClass}
                                 isActive={activeId === activity.id}
                                 aria-pressed={activeId === activity.id}
                                 aria-controls={activity.navigation.length ? "primary" : undefined}
@@ -45,8 +48,8 @@
             </Sidebar.GroupContent>
         </Sidebar.Group>
     </Sidebar.Content>
-    <Sidebar.Footer>
-        <Sidebar.Menu>
+    <Sidebar.Footer class="shrink-0 px-1.5 py-2">
+        <Sidebar.Menu class="gap-1">
             <Sidebar.MenuItem>
                 <Popover.Popover>
                     <Popover.PopoverTrigger>
@@ -61,7 +64,7 @@
                             </Sidebar.MenuButton>
                         {/snippet}
                     </Popover.PopoverTrigger>
-                    <Popover.PopoverContent side="right" align="end" class="w-auto text-sm">
+                    <Popover.PopoverContent side="right" align="end" sideOffset={8} class="w-auto gap-1 px-3 py-2 text-sm">
                         <p class="font-medium">{$t("workbench.userSpace")}</p>
                         <p class="text-muted-foreground">{$t("workbench.guest")}</p>
                     </Popover.PopoverContent>
