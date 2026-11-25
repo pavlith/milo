@@ -82,7 +82,7 @@
                 {@render Button({ props })}
             {/snippet}
         </Tooltip.Trigger>
-        <Tooltip.Content side="right" align="center" sideOffset={4} {...tooltipContentProps}>
+        <Tooltip.Content side="right" align="center" sideOffset={8} {...tooltipContentProps}>
             {#if typeof tooltipContent === "string"}
                 {tooltipContent}
             {:else if tooltipContent}
