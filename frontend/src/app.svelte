@@ -1,5 +1,6 @@
 <script lang="ts">
     import Command, { type WorkbenchCommand } from "$lib/components/command.svelte";
+    import WorkbenchHeader from "$lib/components/workbench-header.svelte";
     import Content from "$lib/components/content.svelte";
     import { viewById, views } from "$lib/components/pane/views";
     import { Button } from "$lib/components/ui/button";
@@ -14,7 +15,7 @@
         type ResizableRegion,
     } from "$lib/state";
     import { closeTabs, openTab, type TabState } from "$lib/tab";
-    import { Command as CommandIcon, LayoutGrid, PanelBottom, PanelRight, X } from "@lucide/svelte";
+    import { LayoutGrid, PanelBottom, PanelRight, X } from "@lucide/svelte";
     import { ModeWatcher } from "mode-watcher";
     import { onMount } from "svelte";
 
@@ -25,6 +26,8 @@
     let workbench = $state.raw(loadWorkbench(views.map((view) => view.id)));
     let content: ReturnType<typeof Content> | undefined = $state();
     let paletteOpen = $state(false);
+    let desktop = $state.raw<typeof import("@wailsio/runtime")>();
+    let customTitlebar = $state(false);
     let appName = $state("Milo");
     let activeView = $derived(workbench.editor.activeId ? viewById.get(workbench.editor.activeId) : undefined);
 
@@ -68,10 +71,13 @@
             import("../bindings/milo.local/platform/app/host"),
             import("../bindings/events"),
         ])
-            .then(([{ Events }, { WorkbenchReady }, { MiloHostReady }]) => {
+            .then(async ([runtime, { WorkbenchReady }, { MiloHostReady }]) => {
                 if (disposed) return;
-                unsubscribe = Events.Once(MiloHostReady, ({ data }) => (appName = data));
-                return WorkbenchReady();
+                unsubscribe = runtime.Events.Once(MiloHostReady, ({ data }) => (appName = data));
+                await WorkbenchReady();
+                if (disposed) return;
+                customTitlebar = runtime.Flags.GetFlag("milo.customTitlebar") === true;
+                desktop = runtime;
             })
             .catch((error: unknown) => {
                 unsubscribe?.();
@@ -127,18 +133,18 @@
     </Button>
 {/snippet}
 
-<header data-region="header" class="bg-muted/50 flex h-10 shrink-0 items-center justify-between gap-3 border-b px-3">
-    <span class="text-sm font-semibold">{appName}</span>
-    <Button variant="outline" size="sm" class="min-w-0 gap-2" onclick={() => (paletteOpen = true)}>
-        <CommandIcon />
-        <span class="truncate">{$t("workbench.command")}</span>
-        <kbd class="text-muted-foreground hidden text-xs sm:inline">{formatShortcut(paletteBinding)}</kbd>
-    </Button>
-    <div class="flex shrink-0 gap-1">
+<WorkbenchHeader
+    {appName}
+    {desktop}
+    {customTitlebar}
+    openPalette={() => (paletteOpen = true)}
+    paletteShortcut={formatShortcut(paletteBinding)}
+>
+    {#snippet layoutControls()}
         {@render paneButton("secondary")}
         {@render paneButton("panel")}
-    </div>
-</header>
+    {/snippet}
+</WorkbenchHeader>
 
 <div class="flex min-h-0 flex-1">
     <nav
