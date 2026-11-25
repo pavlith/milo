@@ -71,6 +71,7 @@
                 <Sidebar.MenuButton
                     class={buttonClass}
                     aria-label={$t("tab.settings")}
+                    aria-haspopup="dialog"
                     tooltipContent={$t("tab.settings")}
                     onclick={openSettings}
                 >

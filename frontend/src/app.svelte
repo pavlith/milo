@@ -19,11 +19,11 @@
     import { loadWorkbench, resizableRegions, saveWorkbench, type ResizableRegion } from "$lib/state";
     import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
-    import { LayoutGrid, ListTodo, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
+    import { LayoutGrid, ListTodo, PanelBottom, PanelLeft, PanelRight, Settings } from "@lucide/svelte";
     import SystemFooter from "$lib/modules/footer.svelte";
     import { registerSystemMenu } from "$lib/modules/menu";
     import SystemPanel from "$lib/modules/panel.svelte";
-    import { registerSettingsEditor, settingsEditor } from "$lib/modules/settings/contribution";
+    import SettingsDialog from "$lib/modules/settings/settings-dialog.svelte";
     import SettingsTheme from "$lib/modules/settings/theme.svelte";
     import { onMount } from "svelte";
 
@@ -31,11 +31,8 @@
     const paneIcons = { primary: PanelLeft, panel: PanelBottom, secondary: PanelRight };
 
     const registry = new EditorRegistry();
-    const disposeSettings = registerSettingsEditor(registry);
-    const builtinChoices = registerBuiltinEditors(registry);
-    const choices = [...builtinChoices, settingsEditor];
+    const choices = registerBuiltinEditors(registry);
     const choiceById = new Map(choices.map((choice) => [choice.id, choice]));
-    choiceById.set("appearance", settingsEditor);
     const initial = loadWorkbench({ registry, defaultEditor: choices[0], legacyEditors: choiceById });
     const dialog = new EditorCloseDialog();
     const manager = new EditorManager(registry, initial.editor, dialog);
@@ -44,6 +41,8 @@
     let editor = $state.raw(manager.state);
     let content: ReturnType<typeof Content> | undefined = $state();
     let paletteOpen = $state(false);
+    let settingsOpen = $state(false);
+    const openSettings = () => (settingsOpen = true);
     let desktop = $state.raw<DesktopRuntime>();
     let customTitlebar = $state(false);
     let panelView = $state("output");
@@ -52,7 +51,7 @@
     let groupIndex = $derived(editor.groups.findIndex(({ id }) => id === editor.focusedGroupId));
     let active = $derived(activeTab(editor.groups[groupIndex]));
     let dirty = $derived(editor.groups.some((group) => group.tabs.some((tab) => tab.dirty)));
-    let modal = $derived(!!(dialog.prompt || dialog.failure));
+    let modal = $derived(settingsOpen || !!(dialog.prompt || dialog.failure));
 
     const activities = activityRegistry();
     activities.register({
@@ -60,7 +59,7 @@
         owner: "milo.workbench",
         title: "workbench.views",
         icon: LayoutGrid,
-        navigation: builtinChoices.map((choice) => ({
+        navigation: choices.map((choice) => ({
             ...choice,
             run: () => manager.open(choice, { preview: choice.preview }),
             isActive: () => active?.editorTypeId === choice.editorTypeId && active.resource === choice.resource,
@@ -120,7 +119,7 @@
     });
 
     const systemMenu = registerSystemMenu(menu, {
-        settings: () => open("settings"),
+        settings: openSettings,
         output: () => showPanel("output"),
         tasks: () => showPanel("tasks"),
         notifications: () => (notificationsOpen = true),
@@ -137,10 +136,7 @@
         return () => window.removeEventListener("beforeunload", confirmUnload);
     });
 
-    onMount(() => () => {
-        systemMenu.dispose();
-        disposeSettings();
-    });
+    onMount(() => systemMenu.dispose);
     onMount(() => manager.subscribe((workspace) => (editor = workspace)));
     onMount(() =>
         bindShortcuts([
@@ -163,6 +159,12 @@
     );
 
     let commands = $derived<WorkbenchCommand[]>([
+        {
+            id: "open.settings",
+            label: $t("workbench.command.open", $t("tab.settings")),
+            icon: Settings,
+            run: openSettings,
+        },
         ...choices.map((choice) => ({
             id: "open." + choice.id,
             label: $t("workbench.command.open", $t(choice.title)),
@@ -216,12 +218,7 @@
 </WorkbenchHeader>
 
 <Sidebar.Provider class="flex-1">
-    <LeftSidebar
-        activities={$activities}
-        activeId={activity?.id}
-        select={selectActivity}
-        openSettings={() => open("settings")}
-    />
+    <LeftSidebar activities={$activities} activeId={activity?.id} select={selectActivity} {openSettings} />
     <Content
         bind:this={content}
         initialPanes={initial.panes}
@@ -246,5 +243,7 @@
 />
 
 <Command bind:open={paletteOpen} {commands} />
+
+<SettingsDialog bind:open={settingsOpen} />
 
 <CloseDialog {dialog} />

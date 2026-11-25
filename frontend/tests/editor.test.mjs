@@ -489,35 +489,33 @@ test("invalid workspace recovers safely from duplicate IDs, missing types and un
     );
 });
 
-test("a persisted Appearance tab restores as a single Settings editor", () => {
+test("retired Settings and Appearance tabs leave the remaining editors available", () => {
     const { registry } = fixture();
-    registry.register({
-        id: "milo.settings.editor",
-        ownerId: "milo.settings",
-        title: "Settings",
-        kind: "singleton",
-        restore: true,
-        preview: false,
-        load: async () => ({ default: () => {} }),
-    });
-    const legacy = { id: "old", ownerId: "milo.workbench", editorTypeId: "milo.workbench.appearance", pinned: true };
     const workspace = restoreWorkbench(
         {
             version: 2,
             editor: {
-                focusedGroupId: "one",
                 groups: [
-                    { id: "one", activeId: "old", tabs: [legacy] },
-                    { id: "two", tabs: [{ ...legacy, id: "duplicate" }] },
+                    {
+                        id: "main",
+                        activeId: "settings",
+                        tabs: [
+                            { id: "settings", ownerId: "milo.settings", editorTypeId: "milo.settings.editor" },
+                            {
+                                id: "appearance",
+                                ownerId: "milo.workbench",
+                                editorTypeId: "milo.workbench.appearance",
+                                pinned: true,
+                            },
+                            { id: "keep", ownerId, ...singleton },
+                        ],
+                    },
                 ],
             },
         },
         { registry, legacyEditors: new Map() }
     );
-    const [one, two] = workspace.editor.groups;
-    assert.equal(one.activeId, "old");
-    assert.equal(one.tabs[0].ownerId, "milo.settings");
-    assert.equal(one.tabs[0].editorTypeId, "milo.settings.editor");
-    assert.equal(one.tabs[0].pinned, true);
-    assert.deepEqual(two.tabs, []);
+    const [group] = workspace.editor.groups;
+    assert.equal(group.activeId, "keep");
+    assert.deepEqual(ids(group), ["keep"]);
 });

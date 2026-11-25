@@ -108,6 +108,7 @@
     "settings.option.light": "Light",
     "settings.option.dark": "Dark",
     "settings.option.system": "System",
+    "settings.description": "Search and change Milo preferences.",
     "settings.search": "Search settings",
     "settings.categories": "Settings categories",
     "settings.reset": "Reset",
