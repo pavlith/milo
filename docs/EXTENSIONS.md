@@ -2,7 +2,9 @@
 
 This document defines the planned SDK and extension host. Core MVP targets an explicitly trusted local developer extension. Public untrusted execution and marketplace distribution are later stages.
 
-Stage 04 provides one Go resource scope per trusted built-in module. In Stage 08, the extension host will associate a separate resource lifetime with each authenticated activation. On deactivation it must first resolve dirty editors through the Workbench, then release that owner’s subscriptions, tasks, actions and contributions. Failed activation also requires disposal of partial registrations. Independently installed extensions have their own host lifecycle. [Built-in module cleanup](MODULES.md#owner-scoped-cleanup)
+Stage 04 provides one Go resource scope per trusted built-in module. Stage 05 uses it to bind Settings schemas and Task owners to the corresponding activation. Go also supplies owner-labelled logging and in-app notifications. Future SDK calls will derive their owner from the authenticated session and route through these services. [System module APIs](MODULES.md#implemented-services)
+
+In Stage 08, the extension host will associate a separate resource lifetime with each authenticated activation. On deactivation it must first resolve dirty editors through the Workbench, then release that owner’s subscriptions, tasks, actions and contributions. Failed activation also requires disposal of partial registrations. Independently installed extensions have their own host lifecycle. [Built-in module cleanup](MODULES.md#owner-scoped-cleanup)
 
 ## Package and manifest
 

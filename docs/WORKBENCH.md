@@ -1,10 +1,10 @@
 # Workbench UI contract
 
-## Implemented through Stage 03
+## Implemented through Stage 05
 
 The shell renders seven regions with one or two side-by-side editor groups. The primary sidebar, Open tab menu and local command palette open trusted editors. Each group has its own tab bar, active renderer and preview. The footer identifies the active editor in the focused group and shows its dirty state.
 
-PaneForge resizes the primary and secondary sidebars, bottom Panel and editor split. Header buttons, the View menu and the palette update the same pane preferences. The activity rail can reopen the primary sidebar. Reopening a region restores its last size within the bounds in `frontend/src/lib/state.ts`. The secondary sidebar and bottom Panel render empty states. WebKit local storage holds layout and validated tab metadata, and Mode Watcher persists theme choice.
+PaneForge resizes the primary and secondary sidebars, bottom Panel and editor split. Header buttons, the View menu and the palette update the same pane preferences. The activity rail can reopen the primary sidebar. Reopening a region restores its last size within the bounds in `frontend/src/lib/state.ts`. The secondary sidebar has an empty state. The bottom Panel hosts Output and Tasks. WebKit local storage holds layout and validated tab metadata. Go persists theme choice, and Mode Watcher supplies the system color preference.
 
 ## Regions
 
@@ -32,7 +32,7 @@ Use PaneForge for the primary sidebar, secondary sidebar, bottom Panel and edito
 
 Milo uses Wails 3.1 frameless mode on Linux. Empty Header space uses Wails drag regions, and the menu, Command Center and buttons opt out of dragging. A double-click on empty Header space toggles maximize/restore. The window buttons call the Wails runtime for minimize, maximize/restore and close. The maximize button reads the initial native state and follows Wails window events, including changes from the window manager. Wails handles edge resize and the host sets a minimum window size of 720 × 480. Launch with `MILO_NATIVE_TITLEBAR=1` to use system decorations on Linux. Other platforms use system decorations by default. The Workbench Header stays available with system decorations and in browser previews. [Wails frameless windows](https://v3.wails.io/features/windows/frameless/)
 
-The Command Center opens the existing local palette and displays its shortcut. Stage 06 adds the Action and Search modules and connects them to the palette. File opens the palette and can quit the native app. Edit opens Appearance. View controls the three panes and exposes editor operations, including split, navigation, focus and close. Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
+The Command Center opens the existing local palette and displays its shortcut. Stage 06 adds the Action and Search modules and connects them to the palette. File opens the palette and can quit the native app. Edit opens Settings. View controls the three panes and exposes editor operations, including split, navigation, focus and close. It also opens Output, Tasks and the Notification Center. Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
 
 ## Menu Registry
 
@@ -50,7 +50,7 @@ Use Svelte 5 runes for new reactive state where appropriate, TypeScript strictne
 
 An editor type declares its namespaced ID, owner, title, optional Lucide icon, lazy Svelte loader and singleton or resource behavior. A resource is a stable opaque string interpreted by its editor type. Resource registrations describe the reference and can opt in to restoring supported references. Singleton registrations can opt in to restoration. Registrations can disable preview.
 
-An editor tab has its own instance ID, owner ID, editor type ID, optional resource reference, title and icon metadata, group ID, and pinned, preview and dirty flags. Each editor group keeps an ordered list of instances and its own active tab. The Workbench also tracks the focused group. The manager deduplicates resource opens by type and reference within the target group. **Open New Instance** opens an independent instance of a resource. Singleton editors such as Appearance focus their existing instance across groups.
+An editor tab has its own instance ID, owner ID, editor type ID, optional resource reference, title and icon metadata, group ID, and pinned, preview and dirty flags. Each editor group keeps an ordered list of instances and its own active tab. The Workbench also tracks the focused group. The manager deduplicates resource opens by type and reference within the target group. **Open New Instance** opens an independent instance of a resource. Singleton editors such as Settings focus their existing instance across groups.
 
 The registry rejects duplicate IDs and validates owner namespaces. Registration returns a disposer and the registry supports removing all registrations for an owner. Renderer loads are shared by a live registration. The group mounts only its active renderer and shows loading, unavailable and retry states as appropriate. Editor sessions are keyed by tab instance and remain available across renderer unmounts, focus changes and group moves.
 
@@ -85,14 +85,19 @@ The shortcut handler respects events already handled by the focused control. Bro
 
 The `milo.workbench` key stores version 2, pane preferences, and an `editor` object with `focusedGroupId`, `leftSize` and ordered `groups`. Groups store IDs, active tab IDs and ordered tabs. Persisted tab fields are `id`, `ownerId`, `editorTypeId`, optional `resource`, `pinned` and `preview`. The registry supplies presentation metadata on restore. Corruption, duplicate IDs, missing registrations and unavailable or unsupported resources are handled during validation. Version 1 tabs migrate from legacy view IDs to new instance IDs while preserving pins, ordering, focus and pane preferences.
 
-The snapshot contains metadata only. Dirty state, draft text, saved demo text, renderer data and close history stay in memory. Sample and Sample B exercise the same resource type with two stable references. Save updates the in-session resource and new instances read that saved text. Restart restores the tab metadata and loads the built-in sample text. Mode Watcher stores the theme separately under `milo.state.mode`.
+The snapshot contains metadata only. Dirty state, draft text, saved demo text, renderer data and close history stay in memory. Sample and Sample B exercise the same resource type with two stable references. Save updates the in-session resource and new instances read that saved text. Restart restores the tab metadata and loads the built-in sample text. The Settings editor supersedes Appearance. Old Appearance tab metadata restores as Settings. A compatible `milo.state.mode` theme transfers to Settings once, preserving any existing Go override.
+
+## System modules
+
+- **Settings** opens as a singleton editor from Edit, the primary sidebar, Open tab or the palette. General, Appearance and Workbench each have searchable preferences, per-setting reset and confirmed category reset. Theme, notification toasts, editor status and the minimum capture level take effect across the Workbench.
+- **Output** filters retained logs by minimum visible severity, owner and text. Select rows to copy specific records or copy all matching rows. Auto-scroll and clear controls operate on the Output view.
+- **Tasks** shows active progress, supported cancellations and recent outcomes. If any active operation has indeterminate progress, the footer shows an indeterminate aggregate. Otherwise it shows the average across active tasks. Clicking the indicator opens Tasks. The Cancel control signals Go and shows Cancelling until execution finishes.
+- **Notifications** opens from the footer bell or View. The footer count tracks unread entries. The center marks one or all as read, dismisses individual entries, and clears the in-app history. Toasts and the center use the same Go projection.
+
+Output and Tasks share the existing bottom Panel visibility and dimensions. The selected tab is session UI state. Settings is owned by the Editor Registry, and system menu entries use the owner-scoped Menu Registry and local command adapter. [Module APIs](MODULES.md#implemented-services)
 
 ## Planned contributions
 
 Stage 07 generalizes owner-scoped registration for menu entries, activity entries, views, editor types, header actions, panel views, footer status items and command/search registrations. Stable namespaced IDs, order, region, title and icon are metadata. Every registration returns a disposer, rejects duplicates and is removed when the owner stops. Use one shared registry contract for modules and extensions; trusted module components can lazy-import local Svelte files, extension UI goes through the isolated rendering mechanism described in [EXTENSIONS.md](EXTENSIONS.md).
 
 No direct import from extensions into `frontend/src/app.svelte` or layout components. Empty regions collapse gracefully. A test contribution should prove the shell can accept unknown types without editing the shell.
-
-## Task UI planned for Stage 05
-
-The footer progress indicator shows running work and opens the Tasks view in the bottom Panel. The view renders determinate and indeterminate progress, recent terminal outcomes and user-safe error messages. It offers cancellation for supported tasks. Svelte reads snapshots and reacts to events through the trusted Wails bridge. Go owns scheduling, cancellation, errors and history. [Task contract](MODULES.md#task)

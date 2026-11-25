@@ -1,6 +1,6 @@
 # Milo
 
-Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The current build includes a native window, the Workbench, and a lazy editor registry with up to two editor groups. The Go host now validates and runs explicitly registered built-in modules, with dependency-ordered startup, rollback and owner-scoped cleanup. Concrete system services, the public SDK and independent extensions are planned, including future Mail, Contacts and Calendar extensions. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
+Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The native Workbench includes up to two editor groups and four built-in modules. Settings manages durable preferences, Output shows structured logs, Notifications keeps an in-app inbox, and Tasks tracks cancellable Go operations. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
 
 ## Prerequisites
 
@@ -24,11 +24,11 @@ WAILS_EXP_USE_WAKE=1 wails3 build
 
 Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
-The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Appearance, Sample and Sample B. The sidebar opens samples in preview. Double-click the tab to keep it open, or use **Shift+F10** on its label for pinning, reordering, opening a new instance, moving between groups and closing. Editing a sample creates a draft. Save and discard operate on the draft during the current session. Closing with unsaved changes prompts for a decision, including when quitting Milo.
+The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Settings, Sample and Sample B. The sidebar opens samples in preview. Double-click the tab to keep it open, or use **Shift+F10** on its label for pinning, reordering, opening a new instance, moving between groups and closing. Editing a sample creates a draft. Save and discard operate on the draft during the current session. Closing with unsaved changes prompts for a decision, including when quitting Milo.
 
-Use **View → Split Editor Right** or **Ctrl+\** to split. Drag tabs between groups and move the divider to resize them. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs. **Ctrl+W** closes the active tab and **Ctrl+Shift+T** reopens a closed one. Pane visibility, tab layout and theme are restored from the WebKit profile. Sample text is kept in memory.
+Use **View → Split Editor Right** or **Ctrl+\** to split. Drag tabs between groups and move the divider to resize them. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs. **Ctrl+W** closes the active tab and **Ctrl+Shift+T** reopens a closed one. Pane visibility and tab layout are restored from the WebKit profile. Go stores the theme and other durable preferences in `${XDG_CONFIG_HOME:-$HOME/.config}/milo-platform/settings.json`. Sample text is kept in memory.
 
-Use the Header or View menu to toggle panes. Appearance switches between light, dark and system modes. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
+Use **Edit → Settings** to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
 
 ## Generate and verify
 
@@ -44,7 +44,7 @@ go vet ./...
 
 The generated bindings are checked in for frontend-only checks. Regenerate them when Go service methods or Wails events change. The Wails build also generates bindings before compiling the frontend.
 
-The module package has focused lifecycle and concurrency tests. Run `go test -race ./core/module ./app` to exercise them and the host close gate. Stage 05 services can register their typed methods in the composition root. [Module contract](./docs/MODULES.md#common-lifecycle)
+Run `go test -race ./core/module ./modules/... ./app` for lifecycle and concurrency coverage. Focused scenarios exercise persistence and recovery, notification publication and dismissal, structured logs, task progress, success, failure and cancellation. [Module contract](./docs/MODULES.md#common-lifecycle)
 
 ## Repository and license
 

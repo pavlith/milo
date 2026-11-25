@@ -10,7 +10,7 @@ The table records shipped stages and the acceptance criteria for planned work. S
 | 02 | Seven-region Workbench and unified Header | Completed | Seven regions, native Linux window controls with system fallback, independent persisted panes, owner-scoped menu contributions and neutral shadcn theme |
 | 03 | Tabs/editor groups | Completed | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
 | 04 | Module lifecycle and registry | Completed | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
-| 05 | Settings, Notify, Logger & Task | Planned | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
+| 05 | Settings, Notify, Logger & Task | Completed | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
 | 06 | action, search, palette | Planned | Commands/shortcuts, context conflicts, provider cancellation and empty/error states |
 | 07 | Contribution registry | Planned | Owner-scoped views/editors/status/actions; test module can register new types without shell changes |
 | 08 | SDK and extension host | Planned | Versioned manifest/protocol, local discovery/activation, lifecycle/permissions, isolated UI spike |
@@ -125,10 +125,20 @@ Verified on Ubuntu 26.10 linux/amd64 with Go 1.27.3 and Wails 3.1.0.
 
 Shutdown is cooperative. Module callbacks must observe the shared deadline. Lifecycle failure scenarios use test modules, while the native smoke exercises the production host with an empty module inventory. The environment produced the existing GTK X11 deprecation warnings, Mesa DRI3 warning and JavaScriptCore signal-handler message.
 
-## Stage 05 acceptance — Settings, Notify, Logger & Task
+## Stage 05 verification
 
-- Persist validated settings atomically, emit change events and restore a test setting after restart. Verify notification publication, read and dismiss, plus bounded, redacted log retention. Render the Settings editor, notification center and Output with zero extensions installed.
-- Register a Go background operation with an owner and namespaced task ID. Reject duplicate active IDs and unauthorized cancellation. Verify determinate and indeterminate progress and reject progress updates after finalization.
-- Cancel a running task via `context.Context`. Verify succeeded, failed and cancelled outcomes, one completion event per task, a safe failure summary, structured logging and notifications for actionable outcomes. Exercise concurrent progress, cancellation and completion.
-- Enforce the completed history limit. Verify Task service owner cleanup with test owners, including cancellation, rejection of new work for a stopping owner and release of subscriptions. Other owners remain active. Verify the same cleanup during host shutdown. Stage 08 connects extension deactivation to this contract.
-- In the native Workbench, show running progress in the footer and active tasks and recent outcomes in the bottom Panel. Exercise cancellation through generated Wails bindings. The Workbench renders Go snapshots and events. [Task contract](MODULES.md#task)
+Stage 05 ships Settings, Logger, Notify and Task through the existing module lifecycle. Settings writes versioned XDG preferences. The Workbench adds its singleton editor, Output and Tasks tabs, the Notification Center and footer indicators. All four work with an empty extension profile. [Module APIs and limits](MODULES.md#implemented-services) · [Workbench integration](WORKBENCH.md#system-modules)
+
+Verified on Ubuntu 26.10 linux/amd64 with Go 1.27.3, Wails 3.1.0, GTK 4.24.1, WebKitGTK 2.52.6, Node.js 26.13.0 and pnpm 10.19.0.
+
+| Check | Result |
+| --- | --- |
+| `gofmt`, `go test ./...`, `go vet ./...` | Passed. Coverage includes settings persistence, recovery and owner isolation, log retention and redaction, notification read and dismissal, and determinate, indeterminate, successful, failed and cancelled tasks. The host test covers the production registrations and lifecycle. |
+| `go test -race ./core/module ./modules/... ./app` | Passed, including concurrent task progress and cancellation and owner-scoped cleanup. |
+| `wails3 generate bindings -ts -i -d frontend/bindings` | Generated the Host and four Workbench facades with typed event definitions. The native build used the same generated bindings. |
+| `pnpm -C frontend test`, `check`, `build` | 31 tests passed, Svelte reported zero errors and warnings, and Vite built the production bundle with the lazy Settings editor. |
+| `WAILS_EXP_USE_WAKE=1 wails3 build` | Built the Linux binary with embedded Workbench assets at `bin/milo`. The install used the existing pnpm 10 store and frozen lockfile. |
+| Native Linux smoke on GNOME Wayland with isolated XDG storage | The production binary loaded the embedded Workbench from a separate working directory. A temporary Go fixture using the same Workbench build verified determinate and indeterminate progress, cancellation through the generated binding, success, a user-safe failure, a live toast, inbox read/dismiss/clear, structured log redaction, Output filtering and clearing, Settings search and resets, and all three theme choices. |
+| Native Workbench regression smoke | Verified the new menu entries alongside editor split, bottom Panel resize, maximize and restore, and dirty-window close. Cancel preserved the draft and Discard exited cleanly. The production binary later restored the resized Panel, both groups, sample tabs and the Dark setting from that profile. |
+
+The task fixture is test-only. Logs, notifications and recent tasks retain a bounded history for the running host. Notifications use in-app delivery. A background operation must cooperate with context cancellation for cleanup to finish within the shutdown budget. Native verification covered Linux Wayland. The smoke environment reported the existing Wails GTK X11 build deprecations and JavaScriptCore signal-handler message.

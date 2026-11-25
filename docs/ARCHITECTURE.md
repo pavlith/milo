@@ -1,11 +1,11 @@
 # Milo architecture
 
-## Implemented through Stage 04
+## Implemented through Stage 05
 
 - `main.go` starts the native application. `app/` composes the window and the `Host` Wails service. Wails runs startup and shutdown hooks, serves embedded production assets, and uses the loopback Vite dev server during development.
 - The mounted Workbench invokes the generated `WorkbenchReady` binding. The host sends the typed, window-scoped `milo:host-ready` event with the product name. Generated TypeScript lives in `frontend/bindings/`. The host uses Go `slog` for lifecycle messages.
 - `core/` resolves Linux application paths under the XDG config, data and cache roots with the `milo-platform` suffix. It resolves paths without creating directories. GTK uses `io.github.pavlith.milo.platform` for desktop integration, and WebKit uses that identifier for its Linux data and cache profile.
-- `frontend/` contains the Svelte Workbench and the pnpm workspace. It renders seven regions and one or two editor groups. The unified Header hosts the application menu, Command Center and layout and window controls. Workbench storage version 2 contains pane preferences and validated editor group and tab metadata. [Workbench behavior](WORKBENCH.md#implemented-through-stage-03)
+- `frontend/` contains the Svelte Workbench and the pnpm workspace. It renders seven regions and one or two editor groups. The unified Header hosts the application menu, Command Center and layout and window controls. Workbench storage version 2 contains pane preferences and validated editor group and tab metadata. [Workbench behavior](WORKBENCH.md#implemented-through-stage-05)
 - On Linux the host configures Wails frameless mode and exposes its choice through Wails flags. The Header calls window operations through the official runtime and observes native maximize/restore events. System decorations are available as a launch option. [Unified Header](WORKBENCH.md#unified-header)
 - The local typed Menu Registry owns application menu composition. Its local action adapter routes editor actions also used by the command palette and keyboard shortcuts. [Menu Registry](WORKBENCH.md#menu-registry)
 - The typed Editor Registry resolves owner-scoped editor types and lazily imports Svelte renderers. The Editor Manager owns tab instances, independent group state and editor sessions. Svelte mounts the active renderer in each group. A single Workbench dialog handles dirty close decisions and lifecycle failures. [Editor contracts](WORKBENCH.md#tab-and-editor-model)
@@ -25,7 +25,7 @@ Go owns system services, background operations, persistent application data and 
 
 The trusted Workbench calls a small typed Wails bridge and receives scoped events. A module may expose Go operations through that bridge and contribute a Svelte view. Untrusted extension UI must never receive privileged Wails bindings. The extension host mediates SDK calls and UI messages using session identity and capabilities. SDK clients depend on public contracts without importing host internals or generated Wails bindings. [Extension boundary](EXTENSIONS.md)
 
-Future module code belongs in `modules/`, public contracts and clients in `sdk/`, and independently buildable examples in `extensions/examples/`. Add these directories with their first consumers. Keep the host in one Go module until independent SDK packaging requires a boundary.
+Built-in service code lives in `modules/`. Future public contracts and clients belong in `sdk/`, with independently buildable examples in `extensions/examples/`. Add these directories with their first consumers. Keep the host in one Go module until independent SDK packaging requires a boundary.
 
 ## Built-in module lifecycle
 
@@ -33,20 +33,22 @@ Future module code belongs in `modules/`, public contracts and clients in `sdk/`
 
 The native close and quit gates still wait for the Workbench's dirty-editor decision. Approved shutdown reaches `Host.ServiceShutdown` with a fresh deadline because Wails cancels the application context before shutdown hooks run. Cancelled close leaves the modules running.
 
-## Planned services and persistence
+## System module data and events
 
-Extension discovery, activation and supervision belong to Stage 08. The host will use authenticated owner identity to clean up resources on deactivation and unexpected process exit.
+The composition root registers Settings, Logger, Notify and Task in one Module Manager. Logger depends on Settings. Task depends on Logger and Notify. Only the Host has Wails lifecycle hooks. Each module provides a small Workbench facade for generated bindings, while producer methods such as task execution, notification publication and logging stay in Go. [Module APIs](MODULES.md#implemented-services)
 
-Use contexts and bounded work in Go. The Task module tracks and cancels background work, and feeds trusted Workbench projections via Wails. Other modules use Task for operations that need user-visible lifecycle and progress. [Task contract](MODULES.md#task)
+Settings stores versioned JSON under the XDG config root. Logger, Notify and Task keep bounded in-memory histories. The Workbench maintains one projection per service. It listens for revisioned deltas before requesting the snapshot, discards covered updates, and refreshes the snapshot when it detects a revision gap. The host dispatches module events through the Workbench window's bounded Wails queue. Svelte components share projections and release subscriptions when the last view unmounts. Workspace layout and restorable editor metadata continue to use the version 2 WebKit snapshot. [Workspace storage](WORKBENCH.md#workspace-storage)
 
-Use versioned storage for settings and workspace layout. Store application data under XDG paths and scope extension data to validated owner directories. Use atomic writes for settings and SQLite where structured persistence warrants it. Store secrets via the OS keyring or another documented secure mechanism when a real consumer requires it. Keep secrets out of settings, browser storage, events and logs. Bound event payloads, use typed namespaced topics, and release subscriptions with their owners.
+## Planned extension runtime
+
+Extension discovery, activation and supervision belong to Stage 08. The host will derive owner identity from authenticated sessions and bind resource cleanup to activation. Structured domain data can use SQLite where warranted. Credentials will use an OS keyring or another documented secure mechanism when a real consumer requires it. [Extension boundary](EXTENSIONS.md)
 
 ## Current frontend mechanisms and planned transitions
 
 | Current mechanism | Planned transition |
 | --- | --- |
-| Version 2 `milo.workbench` local storage and Mode Watcher via `milo.state.mode` | Stage 05 moves durable settings such as theme to Go. Move durable workspace layout and restorable tab metadata to host persistence as their contracts mature. Keep Mode Watcher for theme rendering. |
+| Version 2 `milo.workbench` local storage and Go-owned durable settings | Move restorable workspace metadata to host persistence as its contract matures. |
 | Owner-scoped Editor Registry, Editor Manager and two-group layout | Stage 07 connects editor registrations and disposers to the shared Contribution Registry. Stage 08 supplies an isolated renderer through the extension host and uses protected owner cleanup before deactivation. |
 | Local palette command list and shortcut handlers | Stage 06 adds action and search contracts. Svelte retains keyboard routing, context handling and presentation. |
 | Owner-scoped Menu Registry and local action resolver | Stage 06 connects menu invocation to Action. Stage 07 moves contribution registration and lifecycle cleanup under the shared registry. The host authorizes extension contributions and action references using authenticated identity and capabilities. |
-| Host lifecycle logs and one readiness event | Keep `slog` and Wails events. Stage 05 adds bounded Output, notifications and Task state using the trusted bridge. |
+| Revisioned Go system module projections and owner-scoped local Workbench registrations | Stage 06 resolves notification action references through Action. Stage 07 registers panel and footer contributions through the shared registry. |
