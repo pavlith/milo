@@ -6,7 +6,7 @@
     import { Input } from "$lib/components/ui/input";
     import { Switch } from "$lib/components/ui/switch";
     import { t } from "$lib/i18n";
-    import { PanelsTopLeft, RotateCcw, Settings, SunMoon } from "@lucide/svelte";
+    import { PanelsTopLeft, RotateCcw, Search, Settings, SunMoon } from "@lucide/svelte";
     import { filterSettings } from "./entries";
     import { settings, settingsAPI } from "./state";
 
@@ -53,21 +53,25 @@
 <Dialog.Root bind:open>
     <Dialog.Content
         animated={false}
-        class="h-[min(34rem,calc(100dvh-2rem))] max-w-[min(48rem,calc(100vw-2rem))] overflow-hidden p-0 sm:max-w-[min(48rem,calc(100vw-2rem))]"
+        class="flex h-[min(32rem,calc(100dvh_-_2rem))] max-w-[min(48rem,calc(100vw_-_2rem))] flex-col gap-0 overflow-hidden rounded-lg p-0 sm:max-w-[min(48rem,calc(100vw_-_2rem))] [&>[data-slot=dialog-close]]:top-2 [&>[data-slot=dialog-close]]:right-3"
     >
         <Dialog.Description class="sr-only">{$t("settings.description")}</Dialog.Description>
-        <Sidebar.Provider style="--sidebar-width: clamp(8rem, 24vw, 12rem)">
-            <Sidebar.Root class="shrink-0 border-e">
+        <header class="flex h-12 shrink-0 items-center border-b px-4 pe-14">
+            <Dialog.Title class="text-sm font-semibold">{$t("tab.settings")}</Dialog.Title>
+        </header>
+        <Sidebar.Provider class="min-h-0 flex-1" style="--sidebar-width: clamp(7rem, 25vw, 11rem)">
+            <Sidebar.Root class="bg-muted/25 shrink-0 border-e">
                 <Sidebar.Content>
-                    <Sidebar.Group role="navigation" aria-label={$t("settings.categories")}>
+                    <Sidebar.Group class="p-2" role="navigation" aria-label={$t("settings.categories")}>
                         <Sidebar.GroupContent>
-                            <Sidebar.Menu>
+                            <Sidebar.Menu class="gap-1">
                                 {#each categories as item (item)}
                                     {@const Icon = categoryIcons[item] ?? Settings}
                                     {@const active = item === category && !query.trim()}
                                     <Sidebar.MenuItem>
                                         <Sidebar.MenuButton
                                             isActive={active}
+                                            class="h-8 gap-2.5 px-2.5"
                                             aria-current={active ? "page" : undefined}
                                             onclick={() => {
                                                 selectedCategory = item;
@@ -85,16 +89,19 @@
                 </Sidebar.Content>
             </Sidebar.Root>
             <section class="flex min-h-0 min-w-0 flex-1 flex-col">
-                <header class="shrink-0 space-y-3 border-b p-4">
-                    <Dialog.Title class="pe-8">{$t("tab.settings")}</Dialog.Title>
-                    <Input
-                        bind:value={query}
-                        type="search"
-                        aria-label={$t("settings.search")}
-                        placeholder={$t("settings.search")}
-                    />
-                </header>
-                <div class="min-h-0 flex-1 overflow-auto p-4">
+                <div class="shrink-0 border-b px-4 py-3">
+                    <div class="relative">
+                        <Search class="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Input
+                            bind:value={query}
+                            type="search"
+                            class="h-9 ps-9 shadow-none"
+                            aria-label={$t("settings.search")}
+                            placeholder={$t("settings.search")}
+                        />
+                    </div>
+                </div>
+                <div class="scrollbar-thin min-h-0 flex-1 overflow-auto px-4 py-3">
                     {#if $settings.status === "loading"}
                         <p role="status">{$t("system.loading")}</p>
                     {:else if $settings.status === "error"}
@@ -108,11 +115,11 @@
                         {/if}
                         {#if error}<p role="alert" class="text-destructive">{error}</p>{/if}
                         {#if !query.trim()}
-                            <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
-                                <h2 class="font-semibold">{categoryLabel(category)}</h2>
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                                <h2 class="text-sm font-semibold">{categoryLabel(category)}</h2>
                                 <Button
                                     size="sm"
-                                    variant="outline"
+                                    variant="ghost"
                                     disabled={busy || !results.some((entry) => entry.overridden)}
                                     onclick={() => (confirm = true)}
                                 >
@@ -121,18 +128,20 @@
                             </div>
                         {/if}
                         {#each results as { schema, value, overridden } (schema.id)}
-                            <div class="flex items-start justify-between gap-2 border-b py-3">
-                                <div class="min-w-0 space-y-1">
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-3 border-b py-4 last:border-b-0">
+                                <div class="min-w-0 flex-[1_1_12rem] space-y-1">
                                     <label for={schema.id} class="text-sm font-medium">{$t(schema.label)}</label>
-                                    <p id={schema.id + "-description"} class="text-muted-foreground text-xs">
+                                    <p id={schema.id + "-description"} class="text-muted-foreground text-xs leading-relaxed">
                                         {$t(schema.description)}
                                     </p>
+                                </div>
+                                <div class="ms-auto flex shrink-0 items-center gap-2">
                                     {#if schema.kind === "choice"}
                                         <select
                                             id={schema.id}
                                             aria-describedby={schema.id + "-description"}
                                             disabled={busy}
-                                            class="border-input bg-background mt-1 h-8 rounded-md border px-2 text-sm"
+                                            class="border-input bg-background focus-visible:ring-ring h-8 w-32 max-w-full rounded-md border px-2 text-sm outline-none focus-visible:ring-2 disabled:opacity-50"
                                             value={value.text}
                                             onchange={(event) => {
                                                 const select = event.currentTarget;
@@ -146,7 +155,7 @@
                                             {/each}
                                         </select>
                                     {:else}
-                                        <div class="mt-1">
+                                        <div class="flex w-32 items-center justify-end">
                                             <Switch
                                                 id={schema.id}
                                                 aria-describedby={schema.id + "-description"}
@@ -157,17 +166,18 @@
                                             />
                                         </div>
                                     {/if}
+                                    <Button
+                                        size="icon-sm"
+                                        variant="ghost"
+                                        class="text-muted-foreground hover:text-foreground"
+                                        disabled={!overridden || busy}
+                                        title={$t("settings.reset")}
+                                        aria-label={$t("settings.resetNamed", $t(schema.label))}
+                                        onclick={() => void change((api) => api.Reset(schema.id))}
+                                    >
+                                        <RotateCcw />
+                                    </Button>
                                 </div>
-                                <Button
-                                    size="icon-sm"
-                                    variant="ghost"
-                                    disabled={!overridden || busy}
-                                    title={$t("settings.reset")}
-                                    aria-label={$t("settings.resetNamed", $t(schema.label))}
-                                    onclick={() => void change((api) => api.Reset(schema.id))}
-                                >
-                                    <RotateCcw />
-                                </Button>
                             </div>
                         {:else}
                             <p class="text-muted-foreground py-4 text-sm">{$t("settings.empty")}</p>
