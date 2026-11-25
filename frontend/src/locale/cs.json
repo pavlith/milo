@@ -15,8 +15,5 @@
     "editor.search.previous": "Předchozí shoda",
     "editor.search.close": "Zavřít vyhledávání",
     "editor.search.matches": "{0}/{1}",
-    "editor.search.no-matches": "0 shod",
-    "modal.pin": "Připnout",
-    "modal.unpin": "Odepnout",
-    "modal.close": "Zavřít"
+    "editor.search.no-matches": "0 shod"
 }

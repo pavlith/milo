@@ -15,8 +15,5 @@
     "editor.search.previous": "Coincidencia anterior",
     "editor.search.close": "Cerrar la búsqueda",
     "editor.search.matches": "{0}/{1}",
-    "editor.search.no-matches": "0 resultados",
-    "modal.pin": "Anclar",
-    "modal.unpin": "Desanclar",
-    "modal.close": "Cerrar"
+    "editor.search.no-matches": "0 resultados"
 }

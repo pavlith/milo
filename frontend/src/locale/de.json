@@ -15,8 +15,5 @@
     "editor.search.previous": "Vorherige Übereinstimmung",
     "editor.search.close": "Suche schließen",
     "editor.search.matches": "{0}/{1}",
-    "editor.search.no-matches": "0 Ergebnisse",
-    "modal.pin": "Anheften",
-    "modal.unpin": "Lösen",
-    "modal.close": "Schließen"
+    "editor.search.no-matches": "0 Ergebnisse"
 }
