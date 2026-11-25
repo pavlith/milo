@@ -9,7 +9,6 @@ import {
 import type { EditorRegistry } from "./editors/registry.ts";
 
 export const workbenchStorageKey = "milo.workbench";
-export const modeStorageKey = "milo.state.mode";
 
 export const resizableRegions = ["primary", "secondary", "panel"] as const;
 export type ResizableRegion = (typeof resizableRegions)[number];

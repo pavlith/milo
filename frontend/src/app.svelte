@@ -15,7 +15,6 @@
     import { bindShortcuts, formatShortcut } from "$lib/shortcut";
     import {
         loadWorkbench,
-        modeStorageKey,
         resizableRegions,
         resizePane,
         saveWorkbench,
@@ -25,15 +24,19 @@
     import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
     import { LayoutGrid, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
-    import { ModeWatcher } from "mode-watcher";
+    import { registerSettingsEditor, settingsEditor } from "$lib/modules/settings/contribution";
+    import { editorStatusID, preference, settings } from "$lib/modules/settings/state";
+    import SettingsTheme from "$lib/modules/settings/theme.svelte";
     import { onMount } from "svelte";
 
     const paletteBinding = { key: "p", shift: true };
     const paneIcons = { primary: PanelLeft, panel: PanelBottom, secondary: PanelRight };
 
     const registry = new EditorRegistry();
-    const choices = registerBuiltinEditors(registry);
+    const disposeSettings = registerSettingsEditor(registry);
+    const choices = [...registerBuiltinEditors(registry), settingsEditor];
     const choiceById = new Map(choices.map((choice) => [choice.id, choice]));
+    choiceById.set("appearance", settingsEditor);
     const initial = loadWorkbench({ registry, defaultEditor: choices[0], legacyEditors: choiceById });
     const dialog = new EditorCloseDialog();
     const manager = new EditorManager(registry, initial.editor, dialog);
@@ -70,7 +73,7 @@
         editorActions: actions,
         openPalette,
         paletteShortcut: formatShortcut(paletteBinding),
-        openAppearance: () => open("appearance"),
+        openSettings: () => open("settings"),
         openWelcome: () => open("welcome"),
         quit: () =>
             void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
@@ -88,6 +91,7 @@
         return () => window.removeEventListener("beforeunload", confirmUnload);
     });
 
+    onMount(() => disposeSettings);
     onMount(() => manager.subscribe((workspace) => (editor = workspace)));
     onMount(() =>
         bindShortcuts([
@@ -132,7 +136,7 @@
 <svelte:head>
     <title>{active ? `${$t(active.title)} | ${appName}` : appName}</title>
 </svelte:head>
-<ModeWatcher {modeStorageKey} synchronousModeChanges />
+<SettingsTheme />
 
 {#snippet paneButton(region: ResizableRegion)}
     {@const Icon = paneIcons[region]}
@@ -188,11 +192,13 @@
     data-region="footer"
     class="bg-muted/50 text-muted-foreground flex h-6 shrink-0 items-center gap-3 border-t px-3 text-xs"
 >
-    {#if editor.groups.length > 1}
-        <span>{$t("workbench.editor.group", groupIndex + 1)}</span>
+    {#if preference($settings, editorStatusID)?.value.enabled ?? true}
+        {#if editor.groups.length > 1}
+            <span>{$t("workbench.editor.group", groupIndex + 1)}</span>
+        {/if}
+        <span class="truncate">{active ? $t(active.title) : $t("pane.empty.title")}</span>
+        {#if active?.dirty}<span>{$t("workbench.editor.dirty")}</span>{/if}
     {/if}
-    <span class="truncate">{active ? $t(active.title) : $t("pane.empty.title")}</span>
-    {#if active?.dirty}<span>{$t("workbench.editor.dirty")}</span>{/if}
 </footer>
 
 <Command bind:open={paletteOpen} {commands} />

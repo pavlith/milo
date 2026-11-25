@@ -34,7 +34,12 @@ export function restoreEditorWorkspace(value: unknown, registry: EditorRegistry)
         const tabs: EditorTab[] = [];
         let hasPreview = false;
         for (const raw of group.tabs) {
-            const { id, ownerId, editorTypeId, resource, pinned, preview } = asRecord(raw);
+            const { id, resource, pinned, preview } = asRecord(raw);
+            let { ownerId, editorTypeId } = asRecord(raw);
+            if (ownerId === "milo.workbench" && editorTypeId === "milo.workbench.appearance") {
+                ownerId = "milo.settings";
+                editorTypeId = "milo.settings.editor";
+            }
             if (!validId(id) || tabIds.has(id) || typeof editorTypeId !== "string") continue;
             if (resource !== undefined && typeof resource !== "string") continue;
             const resolved = registry.resolve({ editorTypeId, resource }, true);

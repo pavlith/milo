@@ -5,11 +5,16 @@
 // @ts-ignore: Unused imports
 import type { Events } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as settings$0 from "../../../../../milo.local/platform/modules/settings/models.js";
+
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "milo:close-requested": number;
             "milo:host-ready": string;
+            "milo:settings-changed": settings$0.Change;
         }
     }
 }

@@ -1,5 +1,5 @@
 import { SampleSession, type SampleResource } from "$lib/components/pane/demo/sample-session";
-import { FileText, LayoutTemplate, Settings } from "@lucide/svelte";
+import { FileText, LayoutTemplate } from "@lucide/svelte";
 import type { EditorChoice } from "./model";
 import type { EditorRegistry } from "./registry";
 
@@ -16,12 +16,6 @@ export function registerBuiltinEditors(registry: EditorRegistry): readonly Edito
         title: "tab.welcome",
         icon: LayoutTemplate,
     };
-    const appearance: EditorChoice = {
-        id: "appearance",
-        editorTypeId: ownerId + ".appearance",
-        title: "tab.appearance",
-        icon: Settings,
-    };
     const sampleType = ownerId + ".sample";
 
     registry.register({
@@ -32,15 +26,6 @@ export function registerBuiltinEditors(registry: EditorRegistry): readonly Edito
         restore: true,
         preview: false,
         load: () => import("$lib/components/pane/demo/welcome.svelte"),
-    });
-    registry.register({
-        ...appearance,
-        ownerId,
-        id: appearance.editorTypeId,
-        kind: "singleton",
-        restore: true,
-        preview: false,
-        load: () => import("$lib/components/pane/demo/appearance.svelte"),
     });
     registry.register({
         ownerId,
@@ -68,6 +53,5 @@ export function registerBuiltinEditors(registry: EditorRegistry): readonly Edito
             icon: FileText,
             preview: true,
         })),
-        appearance,
     ];
 }

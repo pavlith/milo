@@ -10,7 +10,7 @@ interface WorkbenchMenuOptions {
     editorActions: readonly WorkbenchEditorAction[];
     openPalette: () => void;
     paletteShortcut: string;
-    openAppearance: () => void;
+    openSettings: () => void;
     openWelcome: () => void;
     quit: () => void;
     isDesktop: () => boolean;
@@ -45,7 +45,7 @@ export function registerWorkbenchMenu(menu: MenuRegistry, options: WorkbenchMenu
     item(file, "commands", "workbench.command", options.openPalette, { shortcut: options.paletteShortcut });
     register({ kind: "separator", id: file + ".quit-separator", parent: file, visible: options.isDesktop, order: 900 });
     item(file, "quit", "workbench.menu.quit", options.quit, { visible: options.isDesktop, order: 910 });
-    item(edit, "appearance", "tab.appearance", options.openAppearance);
+    item(edit, "settings", "tab.settings", options.openSettings);
     for (const region of ["primary", "panel", "secondary"] as const) {
         item(view, "toggle-" + region, "workbench." + region, () => options.toggle(region), {
             checked: () => options.isOpen(region),
