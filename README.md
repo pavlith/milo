@@ -6,21 +6,34 @@ Milo is a universal, extensible Linux-first desktop platform built with Go, Wail
 
 Install Go 1.26 or newer, Node.js from `.node-version`, and pnpm 10.19.0 as pinned in `frontend/package.json`. Linux builds use a C compiler, `pkg-config`, GTK4 and WebKitGTK 6.0. On Debian and Ubuntu releases that provide this stack, install `build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev`.
 
-Install the matching Wails CLI and add its installation directory to `PATH`.
+Install [Go Task](https://taskfile.dev/docs/installation) and the matching Wails CLI. Add the Go installation directory for binaries (normally `$(go env GOPATH)/bin`) to `PATH`.
 
 ```sh
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+go install github.com/go-task/task/v3/cmd/task@latest
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.2.0-nightly.20261123
 ```
 
 ## Develop and build
 
-Run from the repository root. Wails 3.1 uses the Wake opt-in to load the declarative build in `wails.yaml`.
+Run from the repository root. `Taskfile.yml` is the development entry point; Wails continues to use Wake and the declarative build in `wails.yaml`. The Taskfile sets `WAILS_EXP_USE_WAKE=1` for build and development tasks.
 
 ```sh
-WAILS_EXP_USE_WAKE=1 wails3 dev
-WAILS_EXP_USE_WAKE=1 wails3 build
-./bin/milo
+task --list
+task doctor
+task deps
+task dev
+task build
+task run
 ```
+
+Use `task start` to build and run in one command. Linux defaults to the system-selected graphics backend. To compare native Wayland with X11/XWayland on the same binary, close each instance before starting the next:
+
+```sh
+task run:x11
+task run:wayland
+```
+
+Use `task start:x11` or `task start:wayland` to rebuild first, and `task dev:x11` or `task dev:wayland` for development with a specific backend. X11 can be useful on NVIDIA systems where WebKitGTK is less responsive under Wayland. These tasks do not change system settings or force a backend for all users.
 
 Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
@@ -28,23 +41,24 @@ Select **Views** in the Activity Bar to show Welcome, Sample and Sample B in the
 
 Use **View → Split Editor Right** or **Ctrl+\** to split. Drag tabs between groups and move the divider to resize them. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs. **Ctrl+W** closes the active tab and **Ctrl+Shift+T** reopens a closed one. Pane visibility and tab layout are restored from the WebKit profile. Go stores the theme and other durable preferences in `${XDG_CONFIG_HOME:-$HOME/.config}/milo-platform/settings.json`. Sample text is kept in memory.
 
-Open **Settings** from the Activity Bar, **Edit → Settings** or the command palette to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
+Open **Settings** from the Activity Bar, **Edit → Settings** or the command palette to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Launch with `task run:native` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
 
 ## Generate and verify
 
 ```sh
-wails3 generate bindings -ts -i -d frontend/bindings
-pnpm -C frontend install --frozen-lockfile
-pnpm -C frontend check
-pnpm -C frontend test
-pnpm -C frontend build
-go test ./...
-go vet ./...
+task bindings
+task check
+task test
+task frontend:build
+task test:race
+task verify
 ```
 
 The generated bindings are checked in for frontend-only checks. Regenerate them when Go service methods or Wails events change. The Wails build also generates bindings before compiling the frontend.
 
-Run `go test -race ./core/module ./modules/... ./app` for lifecycle and concurrency coverage. Focused scenarios exercise persistence and recovery, notification publication and dismissal, structured logs, task progress, success, failure and cancellation. [Module contract](./docs/MODULES.md#common-lifecycle)
+Run `task test:race` for lifecycle and concurrency coverage. Focused scenarios exercise persistence and recovery, notification publication and dismissal, structured logs, task progress, success, failure and cancellation. [Module contract](./docs/MODULES.md#common-lifecycle)
+
+Use `task fmt` to format sources, `task version` to inspect the toolchain and `task version:binary` to inspect the built binary. `task clean` removes generated build outputs only. `task verify` installs locked dependencies, regenerates bindings, runs checks and tests, and builds the production binary.
 
 ## Repository and license
 

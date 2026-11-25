@@ -1,0 +1,180 @@
+version: '3'
+
+vars:
+  BIN: ./bin/milo
+
+tasks:
+  default:
+    desc: List available development tasks
+    cmds:
+      - task --list
+
+  deps:
+    desc: Download Go and frontend dependencies
+    cmds:
+      - go mod download
+      - pnpm -C frontend install --frozen-lockfile
+
+  doctor:
+    desc: Check the Wails development environment
+    cmds:
+      - wails3 doctor
+
+  bindings:
+    desc: Regenerate TypeScript Wails bindings
+    cmds:
+      - wails3 generate bindings -ts -i -d frontend/bindings
+
+  build:
+    desc: Build the production desktop binary
+    env:
+      WAILS_EXP_USE_WAKE: '1'
+    cmds:
+      - wails3 build
+
+  dev:
+    desc: Start Wails development mode with the system backend
+    env:
+      WAILS_EXP_USE_WAKE: '1'
+    cmds:
+      - wails3 dev
+
+  dev:x11:
+    desc: Start Wails development mode using X11
+    platforms: [linux]
+    env:
+      WAILS_EXP_USE_WAKE: '1'
+      GDK_BACKEND: x11
+    cmds:
+      - wails3 dev
+
+  dev:wayland:
+    desc: Start Wails development mode using Wayland
+    platforms: [linux]
+    env:
+      WAILS_EXP_USE_WAKE: '1'
+      GDK_BACKEND: wayland
+    cmds:
+      - wails3 dev
+
+  run:
+    desc: Run the existing production binary with the system backend
+    cmds:
+      - '{{.BIN}}'
+
+  run:x11:
+    desc: Run the existing production binary using X11 or XWayland
+    platforms: [linux]
+    env:
+      GDK_BACKEND: x11
+    cmds:
+      - '{{.BIN}}'
+
+  run:wayland:
+    desc: Run the existing production binary using Wayland
+    platforms: [linux]
+    env:
+      GDK_BACKEND: wayland
+    cmds:
+      - '{{.BIN}}'
+
+  run:native:
+    desc: Run with native Linux window decorations
+    platforms: [linux]
+    env:
+      MILO_NATIVE_TITLEBAR: '1'
+    cmds:
+      - '{{.BIN}}'
+
+  start:
+    desc: Build and run the production application
+    cmds:
+      - task: build
+      - task: run
+
+  start:x11:
+    desc: Build and run the production application using X11
+    platforms: [linux]
+    cmds:
+      - task: build
+      - task: run:x11
+
+  start:wayland:
+    desc: Build and run the production application using Wayland
+    platforms: [linux]
+    cmds:
+      - task: build
+      - task: run:wayland
+
+  frontend:build:
+    desc: Build the frontend only
+    cmds:
+      - pnpm -C frontend build
+
+  frontend:check:
+    desc: Run Svelte and TypeScript checks
+    cmds:
+      - pnpm -C frontend check
+
+  frontend:test:
+    desc: Run frontend tests
+    cmds:
+      - pnpm -C frontend test
+
+  go:test:
+    desc: Run all Go tests
+    cmds:
+      - go test ./...
+
+  go:vet:
+    desc: Run Go static analysis
+    cmds:
+      - go vet ./...
+
+  check:
+    desc: Run frontend type checks and Go static analysis
+    cmds:
+      - task: frontend:check
+      - task: go:vet
+
+  test:
+    desc: Run frontend and Go tests
+    cmds:
+      - task: frontend:test
+      - task: go:test
+
+  test:race:
+    desc: Run Go lifecycle and module tests with the race detector
+    cmds:
+      - go test -race ./core/module ./modules/... ./app
+
+  verify:
+    desc: Install dependencies, regenerate bindings, check, test and build
+    cmds:
+      - task: deps
+      - task: bindings
+      - task: check
+      - task: test
+      - task: build
+
+  fmt:
+    desc: Format Go and frontend code
+    cmds:
+      - go fmt ./...
+      - pnpm -C frontend format
+
+  version:
+    desc: Show CLI and Go dependency versions
+    cmds:
+      - wails3 version
+      - go list -m github.com/wailsapp/wails/v3
+
+  version:binary:
+    desc: Show the Go module versions embedded in the production binary
+    cmds:
+      - go version -m '{{.BIN}}'
+
+  clean:
+    desc: Remove generated build outputs without deleting user data or dependencies
+    cmds:
+      - rm -rf bin frontend/dist .wails

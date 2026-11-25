@@ -27,3 +27,6 @@ dist-ssr
 # Wails build output
 /bin/
 /.wails/
+
+# Go Task cache
+/.task/
