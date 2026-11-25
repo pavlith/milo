@@ -12,7 +12,7 @@
     }: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
-<Tooltip.Provider delayDuration={0}>
+<Tooltip.Provider>
     <div
         bind:this={ref}
         data-slot="sidebar-wrapper"
