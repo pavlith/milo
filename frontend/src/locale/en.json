@@ -149,5 +149,19 @@
     "notify.severity.info": "Info",
     "notify.severity.success": "Success",
     "notify.severity.warning": "Warning",
-    "notify.severity.error": "Error"
+    "notify.severity.error": "Error",
+    "task.title": "Tasks",
+    "task.active": "Active tasks",
+    "task.recent": "Recent tasks",
+    "task.noneActive": "No active tasks.",
+    "task.noneRecent": "No recent tasks.",
+    "task.runningCount": "Running tasks ({0})",
+    "task.aggregate": "Overall task progress",
+    "task.cancelling": "Cancelling…",
+    "task.working": "Working…",
+    "task.cancelNamed": "Cancel {0}",
+    "task.progressNamed": "Progress for {0}",
+    "task.status.succeeded": "Succeeded",
+    "task.status.failed": "Failed",
+    "task.status.cancelled": "Cancelled"
 }

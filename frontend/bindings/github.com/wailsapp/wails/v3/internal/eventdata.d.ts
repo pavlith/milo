@@ -14,6 +14,9 @@ import type * as notify$0 from "../../../../../milo.local/platform/modules/notif
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as settings$0 from "../../../../../milo.local/platform/modules/settings/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as task$0 from "../../../../../milo.local/platform/modules/task/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
@@ -23,6 +26,7 @@ declare module "@wailsio/runtime" {
             "milo:log-changed": logger$0.Change;
             "milo:notification-changed": notify$0.Change;
             "milo:settings-changed": settings$0.Change;
+            "milo:task-changed": task$0.Change;
         }
     }
 }

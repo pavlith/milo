@@ -14,9 +14,11 @@ import (
 	"milo.local/platform/modules/logger"
 	"milo.local/platform/modules/notify"
 	"milo.local/platform/modules/settings"
+	"milo.local/platform/modules/task"
 )
 
 const (
+	taskEvent      = "milo:task-changed"
 	notifyEvent    = "milo:notification-changed"
 	loggerEvent    = "milo:log-changed"
 	settingsEvent  = "milo:settings-changed"
@@ -30,6 +32,7 @@ func Run(assets fs.FS) error {
 	application.RegisterEvent[settings.Change](settingsEvent)
 	application.RegisterEvent[logger.Change](loggerEvent)
 	application.RegisterEvent[notify.Change](notifyEvent)
+	application.RegisterEvent[task.Change](taskEvent)
 	host := &Host{}
 	console := slog.Default()
 	logs := logger.New(console.Handler(), func(change logger.Change) {
@@ -55,6 +58,10 @@ func Run(assets fs.FS) error {
 	if err := modules.Register(inbox.Definition()); err != nil {
 		return err
 	}
+	tasks := task.New(logs, inbox, func(change task.Change) { host.window.EmitEvent(taskEvent, change) })
+	if err := modules.Register(tasks.Definition()); err != nil {
+		return err
+	}
 	customTitlebar := runtime.GOOS == "linux" && os.Getenv("MILO_NATIVE_TITLEBAR") != "1"
 	desktop := application.New(application.Options{
 		Name:        productName,
@@ -62,7 +69,7 @@ func Run(assets fs.FS) error {
 		Logger:      console,
 		ShouldQuit:  host.requestClose,
 		Linux:       application.LinuxOptions{ApplicationID: "io.github.pavlith.milo.platform"},
-		Services:    []application.Service{application.NewService(host), application.NewService(settings.NewWorkbench(preferences, logger.ID)), application.NewService(logger.NewWorkbench(logs)), application.NewService(notify.NewWorkbench(inbox))},
+		Services:    []application.Service{application.NewService(host), application.NewService(settings.NewWorkbench(preferences, logger.ID)), application.NewService(logger.NewWorkbench(logs)), application.NewService(notify.NewWorkbench(inbox)), application.NewService(task.NewWorkbench(tasks))},
 		Flags:       map[string]any{"milo.customTitlebar": customTitlebar},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

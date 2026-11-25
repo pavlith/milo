@@ -33,3 +33,8 @@ export const MiloNotificationChanged = "milo:notification-changed";
  */
 export const MiloSettingsChanged = "milo:settings-changed";
 
+/**
+ * Name of the custom event "milo:task-changed".
+ */
+export const MiloTaskChanged = "milo:task-changed";
+
