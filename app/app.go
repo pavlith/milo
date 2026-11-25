@@ -12,10 +12,12 @@ import (
 	"milo.local/platform/core"
 	"milo.local/platform/core/module"
 	"milo.local/platform/modules/logger"
+	"milo.local/platform/modules/notify"
 	"milo.local/platform/modules/settings"
 )
 
 const (
+	notifyEvent    = "milo:notification-changed"
 	loggerEvent    = "milo:log-changed"
 	settingsEvent  = "milo:settings-changed"
 	productName    = "Milo"
@@ -27,6 +29,7 @@ func Run(assets fs.FS) error {
 	application.RegisterEvent[int](closeRequestedEvent)
 	application.RegisterEvent[settings.Change](settingsEvent)
 	application.RegisterEvent[logger.Change](loggerEvent)
+	application.RegisterEvent[notify.Change](notifyEvent)
 	host := &Host{}
 	console := slog.Default()
 	logs := logger.New(console.Handler(), func(change logger.Change) {
@@ -48,6 +51,10 @@ func Run(assets fs.FS) error {
 	if err := modules.Register(logs.Definition(preferences)); err != nil {
 		return err
 	}
+	inbox := notify.New(func(change notify.Change) { host.window.EmitEvent(notifyEvent, change) })
+	if err := modules.Register(inbox.Definition()); err != nil {
+		return err
+	}
 	customTitlebar := runtime.GOOS == "linux" && os.Getenv("MILO_NATIVE_TITLEBAR") != "1"
 	desktop := application.New(application.Options{
 		Name:        productName,
@@ -55,7 +62,7 @@ func Run(assets fs.FS) error {
 		Logger:      console,
 		ShouldQuit:  host.requestClose,
 		Linux:       application.LinuxOptions{ApplicationID: "io.github.pavlith.milo.platform"},
-		Services:    []application.Service{application.NewService(host), application.NewService(settings.NewWorkbench(preferences, logger.ID)), application.NewService(logger.NewWorkbench(logs))},
+		Services:    []application.Service{application.NewService(host), application.NewService(settings.NewWorkbench(preferences, logger.ID)), application.NewService(logger.NewWorkbench(logs)), application.NewService(notify.NewWorkbench(inbox))},
 		Flags:       map[string]any{"milo.customTitlebar": customTitlebar},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

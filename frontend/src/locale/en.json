@@ -135,5 +135,19 @@
     "output.copyError": "Could not copy logs.",
     "output.clear": "Clear output",
     "output.select": "Select log {0}",
-    "output.empty": "No matching logs."
+    "output.empty": "No matching logs.",
+    "notify.title": "Notifications",
+    "notify.unread": "Notifications ({0} unread)",
+    "notify.markAll": "Mark all as read",
+    "notify.clear": "Clear history",
+    "notify.markRead": "Mark as read",
+    "notify.markReadNamed": "Mark {0} as read",
+    "notify.dismiss": "Dismiss",
+    "notify.dismissNamed": "Dismiss {0}",
+    "notify.empty": "No notifications.",
+    "notify.new": "Unread",
+    "notify.severity.info": "Info",
+    "notify.severity.success": "Success",
+    "notify.severity.warning": "Warning",
+    "notify.severity.error": "Error"
 }

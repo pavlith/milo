@@ -24,6 +24,11 @@ export const MiloHostReady = "milo:host-ready";
 export const MiloLogChanged = "milo:log-changed";
 
 /**
+ * Name of the custom event "milo:notification-changed".
+ */
+export const MiloNotificationChanged = "milo:notification-changed";
+
+/**
  * Name of the custom event "milo:settings-changed".
  */
 export const MiloSettingsChanged = "milo:settings-changed";
