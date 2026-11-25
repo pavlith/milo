@@ -1,6 +1,6 @@
 {
-    "name": "slicer",
-    "description": "A domain-neutral workbench foundation.",
+    "name": "milo",
+    "description": "The workbench for the Milo desktop platform.",
     "license": "MIT",
     "private": true,
     "version": "0.0.1",

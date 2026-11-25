@@ -1,10 +1,12 @@
 # yaml-language-server: $schema=https://v3.wails.io/schemas/wails.v3.json
 version: 3
 project:
-  name: slicer
-  product_name: slicer
-  identifier: io.github.pavlith.slicer
+  name: milo
+  product_name: Milo
+  identifier: io.github.pavlith.milo.platform
   version: 0.0.1
+linux:
+  desktop_entry: build/linux/io.github.pavlith.milo.platform.desktop
 frontend:
   directory: frontend
   install: [pnpm, install, --frozen-lockfile]

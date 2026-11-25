@@ -9,5 +9,5 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
  * WorkbenchReady acknowledges a mounted workbench, including after a Vite reload.
  */
 export function WorkbenchReady(): $CancellablePromise<void> {
-    return $Call.ByID(494219633);
+    return $Call.ByID(1345544965);
 }

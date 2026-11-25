@@ -25,7 +25,7 @@
     let workbench = $state.raw(loadWorkbench(views.map((view) => view.id)));
     let content: ReturnType<typeof Content> | undefined = $state();
     let paletteOpen = $state(false);
-    let appName = $state("slicer");
+    let appName = $state("Milo");
     let activeView = $derived(workbench.editor.activeId ? viewById.get(workbench.editor.activeId) : undefined);
 
     const updateEditor = (editor: TabState) => {
@@ -65,12 +65,12 @@
         let unsubscribe: (() => void) | undefined;
         void Promise.all([
             import("@wailsio/runtime"),
-            import("../bindings/github.com/pavlith/slicer/app/host"),
+            import("../bindings/milo.local/platform/app/host"),
             import("../bindings/events"),
         ])
-            .then(([{ Events }, { WorkbenchReady }, { SlicerHostReady }]) => {
+            .then(([{ Events }, { WorkbenchReady }, { MiloHostReady }]) => {
                 if (disposed) return;
-                unsubscribe = Events.Once(SlicerHostReady, ({ data }) => (appName = data));
+                unsubscribe = Events.Once(MiloHostReady, ({ data }) => (appName = data));
                 return WorkbenchReady();
             })
             .catch((error: unknown) => {

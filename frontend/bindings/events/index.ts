@@ -9,7 +9,7 @@ import type {} from "../github.com/wailsapp/wails/v3/internal/eventdata.js";
 import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 
 /**
- * Name of the custom event "slicer:host-ready".
+ * Name of the custom event "milo:host-ready".
  */
-export const SlicerHostReady = "slicer:host-ready";
+export const MiloHostReady = "milo:host-ready";
 

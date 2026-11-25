@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Milo
+Comment=Extensible desktop platform
+Exec=milo
+TryExec=milo
+Terminal=false
+Categories=Utility;

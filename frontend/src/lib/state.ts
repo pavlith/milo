@@ -1,7 +1,7 @@
 import { openTab, restoreTabs, type TabState } from "./tab.ts";
 
-export const workbenchStorageKey = "slicer.workbench";
-export const modeStorageKey = "slicer.state.mode";
+export const workbenchStorageKey = "milo.workbench";
+export const modeStorageKey = "milo.state.mode";
 
 export const resizableRegions = ["primary", "secondary", "panel"] as const;
 export type ResizableRegion = (typeof resizableRegions)[number];

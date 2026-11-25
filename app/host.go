@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/pavlith/slicer/core"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"milo.local/platform/core"
 )
 
 type Host struct {
@@ -18,7 +18,7 @@ func (h *Host) ServiceStartup(ctx context.Context, _ application.ServiceOptions)
 	if err != nil {
 		return err
 	}
-	h.logger.DebugContext(ctx, "resolved application paths", "config", paths.Config, "cache", paths.Cache)
+	h.logger.DebugContext(ctx, "resolved application paths", "config", paths.Config, "data", paths.Data, "cache", paths.Cache)
 	h.logger.InfoContext(ctx, "desktop host started")
 	return nil
 }
@@ -30,6 +30,6 @@ func (h *Host) ServiceShutdown() error {
 
 // WorkbenchReady acknowledges a mounted workbench, including after a Vite reload.
 func (h *Host) WorkbenchReady() {
-	h.window.EmitEvent(hostReadyEvent, core.Name)
+	h.window.EmitEvent(hostReadyEvent, productName)
 	h.logger.Info("workbench ready")
 }

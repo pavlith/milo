@@ -1,4 +1,4 @@
-module github.com/pavlith/slicer
+module milo.local/platform
 
 go 1.26.0
 

@@ -22,7 +22,7 @@
     "tab.sample": "Sample",
     "tab.appearance": "Appearance",
     "pane.empty.title": "No tab open",
-    "workbench.welcome.title": "Slicer Workbench",
+    "workbench.welcome.title": "Milo Workbench",
     "workbench.welcome.description": "Open a view from the sidebar, the tab menu, or the command palette.",
     "workbench.sample.description": "Use the tab’s context menu to pin, move, or close it.",
     "workbench.appearance.mode": "Color mode",

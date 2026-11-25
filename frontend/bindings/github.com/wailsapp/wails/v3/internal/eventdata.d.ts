@@ -8,7 +8,7 @@ import type { Events } from "@wailsio/runtime";
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
-            "slicer:host-ready": string;
+            "milo:host-ready": string;
         }
     }
 }
