@@ -40,7 +40,7 @@
     "workbench.menu.help": "Help",
     "workbench.menu.quit": "Quit Milo",
     "workbench.command": "Command Palette",
-    "workbench.command.description": "Open a view or change the workbench layout.",
+    "workbench.command.description": "Open an editor or change the workbench layout.",
     "workbench.command.placeholder": "Search commands…",
     "workbench.command.empty": "No matching command.",
     "workbench.command.open": "Open {0}",
@@ -65,7 +65,7 @@
     "workbench.tab.moveLeft": "Move left",
     "workbench.tab.moveRight": "Move right",
     "workbench.openWelcome": "Open Welcome",
-    "workbench.view.unavailable": "This view could not be loaded.",
+    "workbench.view.unavailable": "This editor could not be loaded.",
     "workbench.view.retry": "Retry",
     "workbench.editor.unsaved": "Unsaved changes",
     "workbench.editor.confirmSave": "Save changes to “{0}” before closing?",
@@ -86,5 +86,11 @@
     "workbench.editor.newInstance": "Open New Instance",
     "workbench.editor.keepOpen": "Keep Open",
     "workbench.editor.dirty": "Unsaved changes",
-    "workbench.editor.preview": "Preview"
+    "workbench.editor.preview": "Preview",
+    "tab.sampleAlternate": "Sample B",
+    "workbench.sample.text": "Sample text",
+    "workbench.sample.session": "Samples keep saved text for the current session. The workspace restores their tabs.",
+    "workbench.editor.next": "Next Editor Tab",
+    "workbench.editor.previous": "Previous Editor Tab",
+    "workbench.editor.reopen": "Reopen Closed Tab"
 }

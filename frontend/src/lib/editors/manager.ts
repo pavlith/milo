@@ -29,17 +29,18 @@ interface SessionRecord {
 export class EditorManager {
     private listeners = new Set<(workspace: EditorWorkspace) => void>();
     private workspace: EditorWorkspace;
-    private closed: EditorTab[] = [];
+    private closed: (EditorInput & { pinned: boolean })[] = [];
     private sessions = new Map<string, SessionRecord>();
     private closing = false;
     private shuttingDown = false;
 
-    constructor(
-        readonly registry: EditorRegistry,
-        workspace = editorWorkspace(),
-        private readonly feedback?: EditorFeedback
-    ) {
+    readonly registry: EditorRegistry;
+    private readonly feedback?: EditorFeedback;
+
+    constructor(registry: EditorRegistry, workspace = editorWorkspace(), feedback?: EditorFeedback) {
+        this.registry = registry;
         this.workspace = workspace;
+        this.feedback = feedback;
     }
 
     get state(): EditorWorkspace {
@@ -328,7 +329,6 @@ export class EditorManager {
         while (this.closed.length) {
             const previous = this.closed.shift()!;
             const tab = this.open(previous, {
-                groupId: this.group(previous.groupId)?.id ?? this.focusedGroup.id,
                 newInstance: true,
             });
             if (!tab) continue;
@@ -437,7 +437,8 @@ export class EditorManager {
         const recent = [...tabs].reverse();
         const active = activeTab(group);
         if (active && recent.includes(active)) recent.unshift(...recent.splice(recent.indexOf(active), 1));
-        this.closed = [...recent, ...this.closed].slice(0, historyLimit);
+        const entries = recent.map(({ editorTypeId, resource, pinned }) => ({ editorTypeId, resource, pinned }));
+        this.closed = [...entries, ...this.closed].slice(0, historyLimit);
     }
 
     private group(id: string): EditorGroup | undefined {

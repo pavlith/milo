@@ -1,10 +1,15 @@
 <script lang="ts">
     import AppMenu from "$lib/components/app-menu.svelte";
     import Command, { type WorkbenchCommand } from "$lib/components/command.svelte";
-    import WorkbenchHeader from "$lib/components/workbench-header.svelte";
     import Content from "$lib/components/content.svelte";
-    import { viewById, views } from "$lib/components/pane/views";
+    import CloseDialog, { EditorCloseDialog } from "$lib/components/editor-area/close-dialog.svelte";
     import { Button } from "$lib/components/ui/button";
+    import WorkbenchHeader from "$lib/components/workbench-header.svelte";
+    import { connectDesktop, type DesktopRuntime } from "$lib/desktop";
+    import { registerBuiltinEditors } from "$lib/editors/builtins";
+    import { EditorManager } from "$lib/editors/manager";
+    import { activeTab } from "$lib/editors/model";
+    import { EditorRegistry } from "$lib/editors/registry";
     import { t } from "$lib/i18n";
     import { MenuRegistry } from "$lib/menu";
     import { bindShortcuts, formatShortcut } from "$lib/shortcut";
@@ -15,47 +20,54 @@
         resizePane,
         saveWorkbench,
         togglePane,
-        type PanePreferences,
         type ResizableRegion,
     } from "$lib/state";
-    import { closeTabs, openTab, type TabState } from "$lib/tab";
+    import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
-    import { LayoutGrid, PanelBottom, PanelLeft, PanelRight, X } from "@lucide/svelte";
+    import { LayoutGrid, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
     import { ModeWatcher } from "mode-watcher";
     import { onMount } from "svelte";
 
     const paletteBinding = { key: "p", shift: true };
-    const closeBinding = { key: "w" };
     const paneIcons = { primary: PanelLeft, panel: PanelBottom, secondary: PanelRight };
 
-    let workbench = $state.raw(loadWorkbench(views.map((view) => view.id)));
+    const registry = new EditorRegistry();
+    const choices = registerBuiltinEditors(registry);
+    const choiceById = new Map(choices.map((choice) => [choice.id, choice]));
+    const initial = loadWorkbench({ registry, defaultEditor: choices[0], legacyEditors: choiceById });
+    const dialog = new EditorCloseDialog();
+    const manager = new EditorManager(registry, initial.editor, dialog);
+
+    let panes = $state.raw(initial.panes);
+    let editor = $state.raw(manager.state);
     let content: ReturnType<typeof Content> | undefined = $state();
     let paletteOpen = $state(false);
-    let desktop = $state.raw<typeof import("@wailsio/runtime")>();
+    let desktop = $state.raw<DesktopRuntime>();
     let customTitlebar = $state(false);
     let appName = $state("Milo");
-    let activeView = $derived(workbench.editor.activeId ? viewById.get(workbench.editor.activeId) : undefined);
+    let groupIndex = $derived(editor.groups.findIndex(({ id }) => id === editor.focusedGroupId));
+    let active = $derived(activeTab(editor.groups[groupIndex]));
+    let dirty = $derived(editor.groups.some((group) => group.tabs.some((tab) => tab.dirty)));
+    let modal = $derived(!!(dialog.prompt || dialog.failure));
 
-    const updateEditor = (editor: TabState) => {
-        if (editor !== workbench.editor) workbench = { ...workbench, editor };
-    };
-    const updateLayout = (panes: PanePreferences) => {
-        if (panes !== workbench.panes) workbench = { ...workbench, panes };
-    };
-    const open = (id: string) => updateEditor(openTab(workbench.editor, id));
-    const closeActive = () => {
-        if (workbench.editor.activeId) updateEditor(closeTabs(workbench.editor, workbench.editor.activeId));
+    const open = (id: string) => {
+        const choice = choiceById.get(id);
+        if (choice) manager.open(choice);
     };
     const toggleRegion = (region: ResizableRegion) => {
-        const panes = togglePane(workbench.panes, region);
-        updateLayout(panes);
+        panes = togglePane(panes, region);
         content?.applyLayout(panes, region);
     };
-    const resizeRegion = (region: ResizableRegion, size: number) =>
-        updateLayout(resizePane(workbench.panes, region, size));
+    const resizeRegion = (region: ResizableRegion, size: number) => (panes = resizePane(panes, region, size));
     const openPalette = () => (paletteOpen = true);
+    const actions = editorActions(
+        manager,
+        () => editor,
+        () => !modal
+    );
     const menu = new MenuRegistry();
     const resolveMenuAction = registerWorkbenchMenu(menu, {
+        editorActions: actions,
         openPalette,
         paletteShortcut: formatShortcut(paletteBinding),
         openAppearance: () => open("appearance"),
@@ -64,74 +76,61 @@
             void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
         isDesktop: () => !!desktop,
         toggle: toggleRegion,
-        isOpen: (region) => workbench.panes[region].open,
+        isOpen: (region) => panes[region].open,
     });
 
-    $effect(() => saveWorkbench(workbench));
+    $effect(() => saveWorkbench(panes, editor, registry));
 
+    $effect(() => {
+        if (!dirty || location.protocol === "wails:") return;
+        const confirmUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+        window.addEventListener("beforeunload", confirmUnload);
+        return () => window.removeEventListener("beforeunload", confirmUnload);
+    });
+
+    onMount(() => manager.subscribe((workspace) => (editor = workspace)));
     onMount(() =>
         bindShortcuts([
-            { binding: paletteBinding, run: openPalette },
-            {
-                binding: closeBinding,
-                run: closeActive,
-                enabled: () => !paletteOpen && workbench.editor.activeId !== null,
-            },
+            { binding: paletteBinding, run: openPalette, enabled: () => !modal },
+            ...actions.flatMap(({ binding, run, enabled }) =>
+                binding ? [{ binding, run, enabled: () => !paletteOpen && enabled() }] : []
+            ),
         ])
     );
 
-    onMount(() => {
-        if (location.protocol !== "wails:") return;
-
-        let disposed = false;
-        let unsubscribe: (() => void) | undefined;
-        void Promise.all([
-            import("@wailsio/runtime"),
-            import("../bindings/milo.local/platform/app/host"),
-            import("../bindings/events"),
-        ])
-            .then(async ([runtime, { WorkbenchReady }, { MiloHostReady }]) => {
-                if (disposed) return;
-                unsubscribe = runtime.Events.Once(MiloHostReady, ({ data }) => (appName = data));
-                await WorkbenchReady();
-                if (disposed) return;
-                customTitlebar = runtime.Flags.GetFlag("milo.customTitlebar") === true;
+    onMount(() =>
+        connectDesktop(
+            manager,
+            (runtime, titlebar) => {
                 desktop = runtime;
-            })
-            .catch((error: unknown) => {
-                unsubscribe?.();
-                console.error("Could not connect the workbench to the desktop host", error);
-            });
-        return () => {
-            disposed = true;
-            unsubscribe?.();
-        };
-    });
+                customTitlebar = titlebar;
+            },
+            (name) => (appName = name)
+        )
+    );
 
     let commands = $derived<WorkbenchCommand[]>([
-        ...views.map((view) => ({
-            id: "open." + view.id,
-            label: $t("workbench.command.open", $t(view.title)),
-            icon: view.icon,
-            run: () => open(view.id),
+        ...choices.map((choice) => ({
+            id: "open." + choice.id,
+            label: $t("workbench.command.open", $t(choice.title)),
+            icon: choice.icon,
+            run: () => manager.open(choice),
         })),
         ...resizableRegions.map((region) => ({
             id: "toggle." + region,
             label: $t(
-                workbench.panes[region].open ? "workbench.command.hide" : "workbench.command.show",
+                panes[region].open ? "workbench.command.hide" : "workbench.command.show",
                 $t("workbench." + region)
             ),
             icon: paneIcons[region],
             run: () => toggleRegion(region),
         })),
-        ...(workbench.editor.activeId
-            ? [{ id: "close", label: $t("workbench.command.close"), icon: X, binding: closeBinding, run: closeActive }]
-            : []),
+        ...actions.filter((action) => action.enabled()).map((action) => ({ ...action, label: $t(action.label) })),
     ]);
 </script>
 
 <svelte:head>
-    <title>{activeView ? `${$t(activeView.title)} | ${appName}` : appName}</title>
+    <title>{active ? `${$t(active.title)} | ${appName}` : appName}</title>
 </svelte:head>
 <ModeWatcher {modeStorageKey} synchronousModeChanges />
 
@@ -144,7 +143,7 @@
         title={label}
         aria-label={label}
         aria-controls={region}
-        aria-pressed={workbench.panes[region].open}
+        aria-pressed={panes[region].open}
         class="aria-pressed:border-input aria-pressed:bg-background size-7 rounded-sm transition-none active:translate-y-0"
         onclick={() => toggleRegion(region)}
     >
@@ -176,27 +175,26 @@
             title={$t("workbench.views")}
             aria-label={$t("workbench.views")}
             aria-controls="primary"
-            aria-pressed={workbench.panes.primary.open}
+            aria-pressed={panes.primary.open}
             onclick={() => toggleRegion("primary")}
         >
             <LayoutGrid />
         </Button>
     </nav>
-    <Content
-        bind:this={content}
-        panes={workbench.panes}
-        editor={workbench.editor}
-        onresize={resizeRegion}
-        oneditor={updateEditor}
-        onopen={open}
-    />
+    <Content bind:this={content} {panes} {manager} {editor} {choices} onresize={resizeRegion} />
 </div>
 
 <footer
     data-region="footer"
-    class="bg-muted/50 text-muted-foreground flex h-6 shrink-0 items-center border-t px-3 text-xs"
+    class="bg-muted/50 text-muted-foreground flex h-6 shrink-0 items-center gap-3 border-t px-3 text-xs"
 >
-    {activeView ? $t(activeView.title) : $t("pane.empty.title")}
+    {#if editor.groups.length > 1}
+        <span>{$t("workbench.editor.group", groupIndex + 1)}</span>
+    {/if}
+    <span class="truncate">{active ? $t(active.title) : $t("pane.empty.title")}</span>
+    {#if active?.dirty}<span>{$t("workbench.editor.dirty")}</span>{/if}
 </footer>
 
 <Command bind:open={paletteOpen} {commands} />
+
+<CloseDialog {dialog} />

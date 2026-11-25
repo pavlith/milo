@@ -6,6 +6,13 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
+ * ResolveWindowClose resumes a native close only for the current request.
+ */
+export function ResolveWindowClose(request: number, approved: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2577125161, request, approved);
+}
+
+/**
  * WorkbenchReady acknowledges a mounted workbench, including after a Vite reload.
  */
 export function WorkbenchReady(): $CancellablePromise<void> {

@@ -1,5 +1,6 @@
 export interface ShortcutBinding {
     key: string;
+    code?: string;
     shift?: boolean;
 }
 
@@ -11,8 +12,10 @@ interface Shortcut {
 
 const isMac = () => /Macintosh|Mac OS/.test(navigator.userAgent);
 
-export const formatShortcut = ({ key, shift }: ShortcutBinding): string =>
-    isMac() ? `⌘${shift ? "⇧" : ""}${key.toUpperCase()}` : `Ctrl+${shift ? "Shift+" : ""}${key.toUpperCase()}`;
+export const formatShortcut = ({ key, shift }: ShortcutBinding): string => {
+    const label = key === "tab" ? "Tab" : key.toUpperCase();
+    return isMac() ? `⌘${shift ? "⇧" : ""}${label}` : `Ctrl+${shift ? "Shift+" : ""}${label}`;
+};
 
 export const bindShortcuts = (shortcuts: Shortcut[]) => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -20,7 +23,10 @@ export const bindShortcuts = (shortcuts: Shortcut[]) => {
         if (isMac() ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey) return;
 
         const shortcut = shortcuts.find(
-            ({ binding }) => event.key.toLowerCase() === binding.key && event.shiftKey === Boolean(binding.shift)
+            ({ binding }) =>
+                (event.key.toLowerCase() === binding.key ||
+                    (binding.code !== undefined && event.code === binding.code)) &&
+                event.shiftKey === Boolean(binding.shift)
         );
         if (!shortcut || shortcut.enabled?.() === false) return;
 

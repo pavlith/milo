@@ -41,18 +41,20 @@
 {/snippet}
 
 {#if renderer}
-    {#await renderer}
-        <p class="text-muted-foreground p-4 text-sm" role="status">{$t("pane.loading")}</p>
-    {:then { Renderer, context }}
-        <svelte:boundary>
-            <Renderer {tab} {context} />
-            {#snippet failed()}
-                {@render unavailable(true)}
-            {/snippet}
-        </svelte:boundary>
-    {:catch}
-        {@render unavailable(true)}
-    {/await}
+    {#key attempt}
+        {#await renderer}
+            <p class="text-muted-foreground p-4 text-sm" role="status">{$t("pane.loading")}</p>
+        {:then { Renderer, context }}
+            <svelte:boundary>
+                <Renderer {tab} {context} />
+                {#snippet failed()}
+                    {@render unavailable(true)}
+                {/snippet}
+            </svelte:boundary>
+        {:catch}
+            {@render unavailable(true)}
+        {/await}
+    {/key}
 {:else}
     {@render unavailable(false)}
 {/if}

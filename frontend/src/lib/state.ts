@@ -1,4 +1,12 @@
-import { openTab, restoreTabs, type TabState } from "./tab.ts";
+import { EditorManager } from "./editors/manager.ts";
+import type { EditorInput, EditorWorkspace } from "./editors/model.ts";
+import {
+    asRecord,
+    migrateEditorWorkspace,
+    restoreEditorWorkspace,
+    serializeEditorWorkspace,
+} from "./editors/persistence.ts";
+import type { EditorRegistry } from "./editors/registry.ts";
 
 export const workbenchStorageKey = "milo.workbench";
 export const modeStorageKey = "milo.state.mode";
@@ -26,16 +34,19 @@ const defaults = {
 } satisfies PanePreferences;
 
 export interface WorkbenchState {
-    version: 1;
+    version: 2;
     panes: PanePreferences;
-    editor: TabState;
+    editor: EditorWorkspace;
 }
 
-const record = (value: unknown): Record<string, unknown> =>
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+export interface WorkspaceEditors {
+    registry: EditorRegistry;
+    defaultEditor?: EditorInput;
+    legacyEditors: ReadonlyMap<string, EditorInput>;
+}
 
 const restorePane = (value: unknown, region: ResizableRegion): PanePreference => {
-    const { open, size } = record(value);
+    const { open, size } = asRecord(value);
     const { min, max } = paneLimits[region];
     return {
         open: typeof open === "boolean" ? open : defaults[region].open,
@@ -43,33 +54,45 @@ const restorePane = (value: unknown, region: ResizableRegion): PanePreference =>
     };
 };
 
-export const restoreWorkbench = (value: unknown, viewIds: readonly string[]): WorkbenchState => {
-    const input = record(value);
-    const saved = input.version === 1 ? input : {};
-    const panes = record(saved.panes);
-    const empty: TabState = { tabs: [], activeId: null };
+export const restoreWorkbench = (value: unknown, editors: WorkspaceEditors): WorkbenchState => {
+    const { registry, defaultEditor, legacyEditors } = editors;
+    const input = asRecord(value);
+    const saved = input.version === 1 || input.version === 2 ? input : {};
+    const panes = asRecord(saved.panes);
+    let editor =
+        saved.version === 1
+            ? migrateEditorWorkspace(saved.editor, legacyEditors, registry)
+            : restoreEditorWorkspace(saved.editor, registry);
+    if (!editor) {
+        const manager = new EditorManager(registry);
+        if (defaultEditor) manager.open(defaultEditor);
+        editor = manager.state;
+    }
     return {
-        version: 1,
+        version: 2,
         panes: {
             primary: restorePane(panes.primary, "primary"),
             secondary: restorePane(panes.secondary, "secondary"),
             panel: restorePane(panes.panel, "panel"),
         },
-        editor: restoreTabs(saved.editor, viewIds) ?? (viewIds[0] ? openTab(empty, viewIds[0]) : empty),
+        editor,
     };
 };
 
-export const loadWorkbench = (viewIds: readonly string[]): WorkbenchState => {
+export const loadWorkbench = (editors: WorkspaceEditors): WorkbenchState => {
     try {
-        return restoreWorkbench(JSON.parse(localStorage.getItem(workbenchStorageKey) ?? "null"), viewIds);
+        return restoreWorkbench(JSON.parse(localStorage.getItem(workbenchStorageKey) ?? "null"), editors);
     } catch {
-        return restoreWorkbench(null, viewIds);
+        return restoreWorkbench(null, editors);
     }
 };
 
-export const saveWorkbench = (state: WorkbenchState) => {
+export const saveWorkbench = (panes: PanePreferences, workspace: EditorWorkspace, registry: EditorRegistry) => {
     try {
-        localStorage.setItem(workbenchStorageKey, JSON.stringify(state));
+        localStorage.setItem(
+            workbenchStorageKey,
+            JSON.stringify({ version: 2, panes, editor: serializeEditorWorkspace(workspace, registry) })
+        );
     } catch {
         // Keep the current session usable when storage is unavailable.
     }

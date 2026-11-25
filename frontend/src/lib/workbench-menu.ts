@@ -1,10 +1,13 @@
 import type { MenuItem, MenuRegistration, MenuRegistry } from "./menu";
+import { formatShortcut } from "./shortcut";
 import type { ResizableRegion } from "./state";
+import type { WorkbenchEditorAction } from "./workbench-editor-actions";
 
 const owner = "milo.workbench";
 type WithoutOwner<Entry> = Entry extends MenuRegistration ? Omit<Entry, "owner"> : never;
 
 interface WorkbenchMenuOptions {
+    editorActions: readonly WorkbenchEditorAction[];
     openPalette: () => void;
     paletteShortcut: string;
     openAppearance: () => void;
@@ -32,7 +35,7 @@ export function registerWorkbenchMenu(menu: MenuRegistry, options: WorkbenchMenu
         name: string,
         label: string,
         run: () => void,
-        extra: Pick<MenuItem, "visible" | "order" | "shortcut" | "checked"> = {}
+        extra: Pick<MenuItem, "visible" | "enabled" | "order" | "shortcut" | "checked"> = {}
     ) => {
         const action = owner + "." + name;
         actions.set(action, run);
@@ -46,6 +49,14 @@ export function registerWorkbenchMenu(menu: MenuRegistry, options: WorkbenchMenu
     for (const region of ["primary", "panel", "secondary"] as const) {
         item(view, "toggle-" + region, "workbench." + region, () => options.toggle(region), {
             checked: () => options.isOpen(region),
+        });
+    }
+    register({ kind: "separator", id: view + ".editor-separator", parent: view, order: 100 });
+    for (const [index, action] of options.editorActions.entries()) {
+        item(view, action.id, action.label, action.run, {
+            order: 110 + index,
+            enabled: action.enabled,
+            shortcut: action.binding && formatShortcut(action.binding),
         });
     }
     item(help, "welcome", "tab.welcome", options.openWelcome);

@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 const (
@@ -16,12 +17,14 @@ const (
 
 func Run(assets fs.FS) error {
 	application.RegisterEvent[string](hostReadyEvent)
+	application.RegisterEvent[int](closeRequestedEvent)
 	host := &Host{logger: slog.Default()}
 	customTitlebar := runtime.GOOS == "linux" && os.Getenv("MILO_NATIVE_TITLEBAR") != "1"
 	desktop := application.New(application.Options{
 		Name:        productName,
 		Description: "Milo desktop platform",
 		Logger:      host.logger,
+		ShouldQuit:  host.requestClose,
 		Linux:       application.LinuxOptions{ApplicationID: "io.github.pavlith.milo.platform"},
 		Services:    []application.Service{application.NewService(host)},
 		Flags:       map[string]any{"milo.customTitlebar": customTitlebar},
@@ -40,5 +43,10 @@ func Run(assets fs.FS) error {
 		URL:       "/",
 	})
 	host.window = window
+	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if !host.requestClose() {
+			event.Cancel()
+		}
+	})
 	return desktop.Run()
 }

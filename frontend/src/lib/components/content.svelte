@@ -1,22 +1,23 @@
 <script lang="ts">
-    import Pane from "$lib/components/pane/pane.svelte";
-    import { views } from "$lib/components/pane/views";
+    import EditorArea from "$lib/components/editor-area/editor-area.svelte";
     import { Button } from "$lib/components/ui/button";
     import { ResizableHandle, ResizablePane, ResizablePaneGroup } from "$lib/components/ui/resizable";
+    import type { EditorManager } from "$lib/editors/manager";
+    import { activeTab, type EditorChoice, type EditorWorkspace } from "$lib/editors/model";
     import { t } from "$lib/i18n";
     import { columns, paneLimits, rows, type PanePreferences, type ResizableRegion } from "$lib/state";
-    import type { TabState } from "$lib/tab";
     import { untrack } from "svelte";
 
     interface Props {
         panes: PanePreferences;
-        editor: TabState;
+        manager: EditorManager;
+        editor: EditorWorkspace;
+        choices: readonly EditorChoice[];
         onresize: (region: ResizableRegion, size: number) => void;
-        oneditor: (editor: TabState) => void;
-        onopen: (id: string) => void;
     }
 
-    let { panes, editor, onresize, oneditor, onopen }: Props = $props();
+    let { panes, manager, editor, choices, onresize }: Props = $props();
+    let active = $derived(activeTab(editor.groups.find((group) => group.id === editor.focusedGroupId)));
     let horizontal: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
     let vertical: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
 
@@ -49,16 +50,19 @@
             <nav aria-label={$t("workbench.views")} class="bg-sidebar h-full overflow-auto">
                 <h2 class="px-3 pt-3 pb-2 text-xs font-semibold">{$t("workbench.views")}</h2>
                 <div class="space-y-0.5 px-2">
-                    {#each views as view (view.id)}
+                    {#each choices as choice (choice.id)}
                         <Button
                             variant="ghost"
                             size="sm"
                             class="w-full justify-start overflow-hidden"
-                            aria-current={editor.activeId === view.id ? "page" : undefined}
-                            onclick={() => onopen(view.id)}
+                            aria-current={active?.editorTypeId === choice.editorTypeId &&
+                            active.resource === choice.resource
+                                ? "page"
+                                : undefined}
+                            onclick={() => manager.open(choice, { preview: choice.preview })}
                         >
-                            <view.icon />
-                            <span class="truncate">{$t(view.title)}</span>
+                            {#if choice.icon}<choice.icon />{/if}
+                            <span class="truncate">{$t(choice.title)}</span>
                         </Button>
                     {/each}
                 </div>
@@ -88,7 +92,7 @@
                 minSize={100 - paneLimits.panel.max}
             >
                 <main class="h-full" aria-label={$t("workbench.editor")}>
-                    <Pane {editor} onchange={oneditor} {onopen} />
+                    <EditorArea {manager} workspace={editor} {choices} />
                 </main>
             </ResizablePane>
             <ResizableHandle
