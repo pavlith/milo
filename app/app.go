@@ -11,10 +11,12 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"milo.local/platform/core"
 	"milo.local/platform/core/module"
+	"milo.local/platform/modules/logger"
 	"milo.local/platform/modules/settings"
 )
 
 const (
+	loggerEvent    = "milo:log-changed"
 	settingsEvent  = "milo:settings-changed"
 	productName    = "Milo"
 	hostReadyEvent = "milo:host-ready"
@@ -24,27 +26,36 @@ func Run(assets fs.FS) error {
 	application.RegisterEvent[string](hostReadyEvent)
 	application.RegisterEvent[int](closeRequestedEvent)
 	application.RegisterEvent[settings.Change](settingsEvent)
-	logger := slog.Default()
+	application.RegisterEvent[logger.Change](loggerEvent)
+	host := &Host{}
+	console := slog.Default()
+	logs := logger.New(console.Handler(), func(change logger.Change) {
+		host.window.EmitEvent(loggerEvent, change)
+	})
+	host.logger = logs.For("app")
 	paths, err := core.UserPaths()
 	if err != nil {
 		return err
 	}
-	modules := module.NewManager(logger)
-	host := &Host{logger: logger, modules: modules}
-	preferences := settings.New(filepath.Join(paths.Config, "settings.json"), logger.With("owner", settings.ID), func(change settings.Change) {
+	modules := module.NewManager(logs.For("core"))
+	host.modules = modules
+	preferences := settings.New(filepath.Join(paths.Config, "settings.json"), logs.For(settings.ID), func(change settings.Change) {
 		host.window.EmitEvent(settingsEvent, change)
 	})
 	if err := modules.Register(preferences.Definition()); err != nil {
+		return err
+	}
+	if err := modules.Register(logs.Definition(preferences)); err != nil {
 		return err
 	}
 	customTitlebar := runtime.GOOS == "linux" && os.Getenv("MILO_NATIVE_TITLEBAR") != "1"
 	desktop := application.New(application.Options{
 		Name:        productName,
 		Description: "Milo desktop platform",
-		Logger:      host.logger,
+		Logger:      console,
 		ShouldQuit:  host.requestClose,
 		Linux:       application.LinuxOptions{ApplicationID: "io.github.pavlith.milo.platform"},
-		Services:    []application.Service{application.NewService(host), application.NewService(settings.NewWorkbench(preferences))},
+		Services:    []application.Service{application.NewService(host), application.NewService(settings.NewWorkbench(preferences, logger.ID)), application.NewService(logger.NewWorkbench(logs))},
 		Flags:       map[string]any{"milo.customTitlebar": customTitlebar},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

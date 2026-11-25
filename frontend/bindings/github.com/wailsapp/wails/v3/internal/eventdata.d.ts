@@ -7,6 +7,9 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as logger$0 from "../../../../../milo.local/platform/modules/logger/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as settings$0 from "../../../../../milo.local/platform/modules/settings/models.js";
 
 declare module "@wailsio/runtime" {
@@ -14,6 +17,7 @@ declare module "@wailsio/runtime" {
         interface CustomEvents {
             "milo:close-requested": number;
             "milo:host-ready": string;
+            "milo:log-changed": logger$0.Change;
             "milo:settings-changed": settings$0.Change;
         }
     }

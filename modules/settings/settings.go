@@ -258,12 +258,16 @@ func (s *Service) Reset(owner, id string) error {
 }
 
 func (s *Service) ResetCategory(owner, category string) error {
+	return s.resetCategory(category, owner)
+}
+
+func (s *Service) resetCategory(category string, owners ...string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	next := s.copyData()
 	var ids []string
 	for id, schema := range s.schemas {
-		if schema.Category == category && s.owners[id] == owner {
+		if schema.Category == category && slices.Contains(owners, s.owners[id]) {
 			delete(next.Values, id)
 			ids = append(ids, id)
 		}
