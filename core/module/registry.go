@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unicode"
 )
 
 // Definition binds concrete service methods at the composition root.
@@ -38,10 +39,11 @@ type Snapshot struct {
 }
 
 type entry struct {
-	def   Definition
-	scope Scope
-	state State
-	err   error
+	def      Definition
+	scope    Scope
+	state    State
+	startErr error
+	message  string
 }
 
 // registry is owned by one Manager. Its lock also guards lifecycle transitions.
@@ -52,7 +54,7 @@ type registry struct {
 }
 
 func validID(id string) bool {
-	return id != "" && !strings.ContainsAny(id, " \t\n\r") && strings.TrimSpace(id) == id
+	return id != "" && !strings.ContainsFunc(id, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) })
 }
 
 func (r *registry) Register(def Definition) error {
@@ -80,9 +82,7 @@ func (r *registry) Register(def Definition) error {
 
 func (e *entry) snapshot() Snapshot {
 	s := Snapshot{ID: e.def.ID, Dependencies: slices.Clone(e.def.Dependencies), State: e.state}
-	if e.err != nil {
-		s.Error = e.err.Error()
-	}
+	s.Error = e.message
 	return s
 }
 
