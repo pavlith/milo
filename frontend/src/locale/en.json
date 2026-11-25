@@ -47,6 +47,8 @@
     "workbench.command.hide": "Hide {0}",
     "workbench.command.show": "Show {0}",
     "workbench.command.close": "Close active tab",
+    "workbench.userSpace": "User Space",
+    "workbench.guest": "Guest",
     "workbench.views": "Views",
     "workbench.left": "Activity bar",
     "workbench.primary": "Primary sidebar",

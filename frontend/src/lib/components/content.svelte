@@ -1,9 +1,10 @@
 <script lang="ts">
+    import type { Activity } from "$lib/activities";
     import EditorArea from "$lib/components/editor-area/editor-area.svelte";
-    import { Button } from "$lib/components/ui/button";
+    import * as Sidebar from "$lib/components/ui/sidebar";
     import { ResizableHandle, ResizablePane, ResizablePaneGroup } from "$lib/components/ui/resizable";
     import type { EditorManager } from "$lib/editors/manager";
-    import { activeTab, type EditorChoice, type EditorWorkspace } from "$lib/editors/model";
+    import type { EditorChoice, EditorWorkspace } from "$lib/editors/model";
     import { t } from "$lib/i18n";
     import { paneDefaults, type PanePreferences, type ResizableRegion } from "$lib/state";
     import { untrack, type Snippet } from "svelte";
@@ -13,6 +14,7 @@
     interface Props {
         initialPanes: PanePreferences;
         openRegions: Record<ResizableRegion, boolean>;
+        activity?: Activity;
         legacySplitSize?: number;
         manager: EditorManager;
         editor: EditorWorkspace;
@@ -21,9 +23,17 @@
         onvisibilitychange: (region: ResizableRegion, open: boolean) => void;
     }
 
-    let { initialPanes, openRegions, legacySplitSize, manager, editor, choices, panel, onvisibilitychange }: Props =
-        $props();
-    let active = $derived(activeTab(editor.groups.find((group) => group.id === editor.focusedGroupId)));
+    let {
+        initialPanes,
+        openRegions,
+        activity,
+        legacySplitSize,
+        manager,
+        editor,
+        choices,
+        panel,
+        onvisibilitychange,
+    }: Props = $props();
     type Pane = ReturnType<typeof ResizablePane>;
     let primary: Pane | undefined = $state();
     let secondary: Pane | undefined = $state();
@@ -66,28 +76,32 @@
         onCollapse={() => onvisibilitychange("primary", false)}
         onExpand={() => onvisibilitychange("primary", true)}
     >
-        <div class="h-full min-w-0 overflow-hidden" inert={!openRegions.primary}>
-            <nav aria-label={$t("workbench.views")} class="bg-sidebar h-full overflow-auto">
-                <h2 class="px-3 pt-3 pb-2 text-xs font-semibold">{$t("workbench.views")}</h2>
-                <div class="space-y-0.5 px-2">
-                    {#each choices as choice (choice.id)}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            class="w-full justify-start overflow-hidden"
-                            aria-current={active?.editorTypeId === choice.editorTypeId &&
-                            active.resource === choice.resource
-                                ? "page"
-                                : undefined}
-                            onclick={() => manager.open(choice, { preview: choice.preview })}
-                        >
-                            {#if choice.icon}<choice.icon />{/if}
-                            <span class="truncate">{$t(choice.title)}</span>
-                        </Button>
-                    {/each}
-                </div>
-            </nav>
-        </div>
+        <Sidebar.Root class="w-full overflow-hidden" inert={!openRegions.primary}>
+            {#if activity}
+                <Sidebar.Content>
+                    <Sidebar.Group role="navigation" aria-label={$t(activity.title)}>
+                        <Sidebar.GroupLabel>{$t(activity.title)}</Sidebar.GroupLabel>
+                        <Sidebar.GroupContent>
+                            <Sidebar.Menu>
+                                {#each activity.navigation as item (item.id)}
+                                    {@const isActive = item.isActive?.() ?? false}
+                                    <Sidebar.MenuItem>
+                                        <Sidebar.MenuButton
+                                            {isActive}
+                                            aria-current={isActive ? "page" : undefined}
+                                            onclick={item.run}
+                                        >
+                                            {#if item.icon}<item.icon />{/if}
+                                            <span>{$t(item.title)}</span>
+                                        </Sidebar.MenuButton>
+                                    </Sidebar.MenuItem>
+                                {/each}
+                            </Sidebar.Menu>
+                        </Sidebar.GroupContent>
+                    </Sidebar.Group>
+                </Sidebar.Content>
+            {/if}
+        </Sidebar.Root>
     </ResizablePane>
     <ResizableHandle aria-label={$t("workbench.resize.primary")} />
     <ResizablePane id="workspace" order={2} minSize={100 - paneDefaults.primary.max}>

@@ -1,9 +1,12 @@
 <script lang="ts">
+    import { activityRegistry, type Activity } from "$lib/activities";
     import AppMenu from "$lib/components/app-menu.svelte";
     import Command, { type WorkbenchCommand } from "$lib/components/command.svelte";
     import Content from "$lib/components/content.svelte";
     import CloseDialog, { EditorCloseDialog } from "$lib/components/editor-area/close-dialog.svelte";
+    import LeftSidebar from "$lib/components/left-sidebar.svelte";
     import { Button } from "$lib/components/ui/button";
+    import * as Sidebar from "$lib/components/ui/sidebar";
     import WorkbenchHeader from "$lib/components/workbench-header.svelte";
     import { connectDesktop, type DesktopRuntime } from "$lib/desktop";
     import { registerBuiltinEditors } from "$lib/editors/builtins";
@@ -16,7 +19,7 @@
     import { loadWorkbench, resizableRegions, saveWorkbench, type ResizableRegion } from "$lib/state";
     import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
-    import { LayoutGrid, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
+    import { LayoutGrid, ListTodo, PanelBottom, PanelLeft, PanelRight } from "@lucide/svelte";
     import SystemFooter from "$lib/modules/footer.svelte";
     import { registerSystemMenu } from "$lib/modules/menu";
     import SystemPanel from "$lib/modules/panel.svelte";
@@ -29,7 +32,8 @@
 
     const registry = new EditorRegistry();
     const disposeSettings = registerSettingsEditor(registry);
-    const choices = [...registerBuiltinEditors(registry), settingsEditor];
+    const builtinChoices = registerBuiltinEditors(registry);
+    const choices = [...builtinChoices, settingsEditor];
     const choiceById = new Map(choices.map((choice) => [choice.id, choice]));
     choiceById.set("appearance", settingsEditor);
     const initial = loadWorkbench({ registry, defaultEditor: choices[0], legacyEditors: choiceById });
@@ -49,6 +53,41 @@
     let active = $derived(activeTab(editor.groups[groupIndex]));
     let dirty = $derived(editor.groups.some((group) => group.tabs.some((tab) => tab.dirty)));
     let modal = $derived(!!(dialog.prompt || dialog.failure));
+
+    const activities = activityRegistry();
+    activities.register({
+        id: "milo.workbench.views",
+        owner: "milo.workbench",
+        title: "workbench.views",
+        icon: LayoutGrid,
+        navigation: builtinChoices.map((choice) => ({
+            ...choice,
+            run: () => manager.open(choice, { preview: choice.preview }),
+            isActive: () => active?.editorTypeId === choice.editorTypeId && active.resource === choice.resource,
+        })),
+    });
+    activities.register({
+        id: "milo.task.activity",
+        owner: "milo.task",
+        title: "task.title",
+        icon: ListTodo,
+        navigation: [
+            {
+                id: "milo.task.open",
+                title: "task.title",
+                icon: ListTodo,
+                run: () => showPanel("tasks"),
+                isActive: () => openRegions.panel && panelView === "tasks",
+            },
+        ],
+    });
+
+    let selectedActivityId = $state<string>();
+    let activity = $derived($activities.find(({ id }) => id === selectedActivityId) ?? $activities[0]);
+    const selectActivity = (selected: Activity) => {
+        selectedActivityId = selected.id;
+        if (selected.navigation.length) content?.setOpen("primary", true);
+    };
 
     const open = (id: string) => {
         const choice = choiceById.get(id);
@@ -176,30 +215,19 @@
     {/snippet}
 </WorkbenchHeader>
 
-<div class="flex min-h-0 flex-1">
-    <nav
-        data-region="left"
-        aria-label={$t("workbench.left")}
-        class="bg-muted/50 flex w-11 shrink-0 justify-center border-r pt-1.5"
-    >
-        <Button
-            variant="ghost"
-            size="icon-sm"
-            class="aria-pressed:border-input aria-pressed:bg-background rounded-sm transition-none"
-            title={$t("workbench.views")}
-            aria-label={$t("workbench.views")}
-            aria-controls="primary"
-            aria-pressed={openRegions.primary}
-            onclick={() => toggleRegion("primary")}
-        >
-            <LayoutGrid />
-        </Button>
-    </nav>
+<Sidebar.Provider class="flex-1">
+    <LeftSidebar
+        activities={$activities}
+        activeId={activity?.id}
+        select={selectActivity}
+        openSettings={() => open("settings")}
+    />
     <Content
         bind:this={content}
         initialPanes={initial.panes}
         legacySplitSize={initial.legacySplitSize}
         {openRegions}
+        {activity}
         {manager}
         {editor}
         {choices}
@@ -207,7 +235,7 @@
     >
         {#snippet panel()}<SystemPanel bind:view={panelView} />{/snippet}
     </Content>
-</div>
+</Sidebar.Provider>
 
 <SystemFooter
     title={active ? $t(active.title) : $t("pane.empty.title")}
