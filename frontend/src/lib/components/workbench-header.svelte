@@ -10,10 +10,12 @@
         customTitlebar: boolean;
         openPalette: () => void;
         paletteShortcut: string;
+        applicationMenu: Snippet;
         layoutControls: Snippet;
     }
 
-    let { appName, desktop, customTitlebar, openPalette, paletteShortcut, layoutControls }: Props = $props();
+    let { appName, desktop, customTitlebar, openPalette, paletteShortcut, applicationMenu, layoutControls }: Props =
+        $props();
     let header: HTMLElement;
     let maximized = $state(false);
 
@@ -74,6 +76,9 @@
             M
         </span>
         <span class="text-xs font-semibold">{appName}</span>
+        <div data-header-control>
+            {@render applicationMenu()}
+        </div>
     </div>
     <Button
         data-header-control

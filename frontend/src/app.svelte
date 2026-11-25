@@ -1,10 +1,12 @@
 <script lang="ts">
+    import AppMenu from "$lib/components/app-menu.svelte";
     import Command, { type WorkbenchCommand } from "$lib/components/command.svelte";
     import WorkbenchHeader from "$lib/components/workbench-header.svelte";
     import Content from "$lib/components/content.svelte";
     import { viewById, views } from "$lib/components/pane/views";
     import { Button } from "$lib/components/ui/button";
     import { t } from "$lib/i18n";
+    import { MenuRegistry } from "$lib/menu";
     import { bindShortcuts, formatShortcut } from "$lib/shortcut";
     import {
         loadWorkbench,
@@ -17,6 +19,7 @@
         type ResizableRegion,
     } from "$lib/state";
     import { closeTabs, openTab, type TabState } from "$lib/tab";
+    import { registerWorkbenchMenu } from "$lib/workbench-menu";
     import { LayoutGrid, PanelBottom, PanelLeft, PanelRight, X } from "@lucide/svelte";
     import { ModeWatcher } from "mode-watcher";
     import { onMount } from "svelte";
@@ -50,12 +53,25 @@
     };
     const resizeRegion = (region: ResizableRegion, size: number) =>
         updateLayout(resizePane(workbench.panes, region, size));
+    const openPalette = () => (paletteOpen = true);
+    const menu = new MenuRegistry();
+    const resolveMenuAction = registerWorkbenchMenu(menu, {
+        openPalette,
+        paletteShortcut: formatShortcut(paletteBinding),
+        openAppearance: () => open("appearance"),
+        openWelcome: () => open("welcome"),
+        quit: () =>
+            void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
+        isDesktop: () => !!desktop,
+        toggle: toggleRegion,
+        isOpen: (region) => workbench.panes[region].open,
+    });
 
     $effect(() => saveWorkbench(workbench));
 
     onMount(() =>
         bindShortcuts([
-            { binding: paletteBinding, run: () => (paletteOpen = true) },
+            { binding: paletteBinding, run: openPalette },
             {
                 binding: closeBinding,
                 run: closeActive,
@@ -136,13 +152,10 @@
     </Button>
 {/snippet}
 
-<WorkbenchHeader
-    {appName}
-    {desktop}
-    {customTitlebar}
-    openPalette={() => (paletteOpen = true)}
-    paletteShortcut={formatShortcut(paletteBinding)}
->
+<WorkbenchHeader {appName} {desktop} {customTitlebar} {openPalette} paletteShortcut={formatShortcut(paletteBinding)}>
+    {#snippet applicationMenu()}
+        <AppMenu {menu} resolve={resolveMenuAction} />
+    {/snippet}
     {#snippet layoutControls()}
         {@render paneButton("primary")}
         {@render paneButton("panel")}
