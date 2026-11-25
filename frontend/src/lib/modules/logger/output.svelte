@@ -2,12 +2,14 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { t } from "$lib/i18n";
+    import { Portal } from "bits-ui";
     import { Copy, Trash2 } from "@lucide/svelte";
     import { tick } from "svelte";
     import { SvelteSet } from "svelte/reactivity";
     import { copyText, fieldsText, filterLogs, levels, logTime, severityClass, type LogLevel } from "./records";
     import { loggerAPI, output } from "./state";
 
+    let { actions }: { actions?: HTMLElement } = $props();
     let level = $state<LogLevel>("");
     let owner = $state("");
     let query = $state("");
@@ -52,7 +54,7 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col">
-    <div class="flex flex-wrap items-center gap-2 border-b px-2 py-1">
+    <div class="flex shrink-0 flex-wrap items-center gap-2 border-b px-2 py-1">
         <select
             aria-label={$t("output.level")}
             bind:value={level}
@@ -83,26 +85,6 @@
             <input type="checkbox" bind:checked={autoScroll} />
             {$t("output.autoScroll")}
         </label>
-        <Button
-            size="icon-xs"
-            variant="ghost"
-            disabled={!visible.length}
-            onclick={copy}
-            title={$t("output.copy")}
-            aria-label={$t("output.copy")}
-        >
-            <Copy />
-        </Button>
-        <Button
-            size="icon-xs"
-            variant="ghost"
-            disabled={!records.length}
-            onclick={clear}
-            title={$t("output.clear")}
-            aria-label={$t("output.clear")}
-        >
-            <Trash2 />
-        </Button>
     </div>
     {#if error}<p class="text-destructive px-2 py-1 text-xs" role="alert">{error}</p>{/if}
     <div bind:this={list} class="min-h-0 flex-1 overflow-auto">
@@ -138,3 +120,28 @@
         {/if}
     </div>
 </div>
+
+{#if actions}
+    <Portal to={actions}>
+        <Button
+            size="icon-xs"
+            variant="ghost"
+            disabled={!visible.length}
+            onclick={copy}
+            title={$t("output.copy")}
+            aria-label={$t("output.copy")}
+        >
+            <Copy />
+        </Button>
+        <Button
+            size="icon-xs"
+            variant="ghost"
+            disabled={!records.length}
+            onclick={clear}
+            title={$t("output.clear")}
+            aria-label={$t("output.clear")}
+        >
+            <Trash2 />
+        </Button>
+    </Portal>
+{/if}

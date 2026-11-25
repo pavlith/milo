@@ -5,9 +5,8 @@
     import Content from "$lib/components/content.svelte";
     import CloseDialog, { EditorCloseDialog } from "$lib/components/editor-area/close-dialog.svelte";
     import LeftSidebar from "$lib/components/left-sidebar.svelte";
-    import { Button } from "$lib/components/ui/button";
     import * as Sidebar from "$lib/components/ui/sidebar";
-    import WorkbenchHeader from "$lib/components/workbench-header.svelte";
+    import WorkbenchHeader, { paneIcons } from "$lib/components/workbench-header.svelte";
     import { connectDesktop, type DesktopRuntime } from "$lib/desktop";
     import { registerBuiltinEditors } from "$lib/editors/builtins";
     import { EditorManager } from "$lib/editors/manager";
@@ -19,7 +18,7 @@
     import { loadWorkbench, resizableRegions, saveWorkbench, type ResizableRegion } from "$lib/state";
     import { editorActions } from "$lib/workbench-editor-actions";
     import { registerWorkbenchMenu } from "$lib/workbench-menu";
-    import { LayoutGrid, ListTodo, PanelBottom, PanelLeft, PanelRight, Settings } from "@lucide/svelte";
+    import { LayoutGrid, ListTodo, Settings } from "@lucide/svelte";
     import SystemFooter from "$lib/modules/footer.svelte";
     import { registerSystemMenu } from "$lib/modules/menu";
     import SystemPanel from "$lib/modules/panel.svelte";
@@ -28,7 +27,6 @@
     import { onMount } from "svelte";
 
     const paletteBinding = { key: "p", shift: true };
-    const paneIcons = { primary: PanelLeft, panel: PanelBottom, secondary: PanelRight };
 
     const registry = new EditorRegistry();
     const choices = registerBuiltinEditors(registry);
@@ -189,31 +187,17 @@
 </svelte:head>
 <SettingsTheme />
 
-{#snippet paneButton(region: ResizableRegion)}
-    {@const Icon = paneIcons[region]}
-    {@const label = $t("workbench." + region)}
-    <Button
-        size="icon-xs"
-        variant="ghost"
-        title={label}
-        aria-label={label}
-        aria-controls={region}
-        aria-pressed={openRegions[region]}
-        class="aria-pressed:border-input aria-pressed:bg-background size-7 rounded-sm transition-none active:translate-y-0"
-        onclick={() => toggleRegion(region)}
-    >
-        <Icon />
-    </Button>
-{/snippet}
-
-<WorkbenchHeader {appName} {desktop} {customTitlebar} {openPalette} paletteShortcut={formatShortcut(paletteBinding)}>
+<WorkbenchHeader
+    {appName}
+    {desktop}
+    {customTitlebar}
+    {openPalette}
+    {openRegions}
+    {toggleRegion}
+    paletteShortcut={formatShortcut(paletteBinding)}
+>
     {#snippet applicationMenu()}
         <AppMenu {menu} resolve={resolveMenuAction} />
-    {/snippet}
-    {#snippet layoutControls()}
-        {@render paneButton("primary")}
-        {@render paneButton("panel")}
-        {@render paneButton("secondary")}
     {/snippet}
 </WorkbenchHeader>
 
