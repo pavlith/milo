@@ -4,14 +4,17 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"milo.local/platform/core"
+	"milo.local/platform/core/module"
 )
 
 type Host struct {
-	logger *slog.Logger
-	window *application.WebviewWindow
+	modules *module.Manager
+	logger  *slog.Logger
+	window  *application.WebviewWindow
 
 	closeMu        sync.Mutex
 	workbenchReady bool
@@ -26,11 +29,19 @@ func (h *Host) ServiceStartup(ctx context.Context, _ application.ServiceOptions)
 		return err
 	}
 	h.logger.DebugContext(ctx, "resolved application paths", "config", paths.Config, "data", paths.Data, "cache", paths.Cache)
+	if err := h.modules.Start(ctx); err != nil {
+		return err
+	}
 	h.logger.InfoContext(ctx, "desktop host started")
 	return nil
 }
 
 func (h *Host) ServiceShutdown() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := h.modules.Shutdown(ctx); err != nil {
+		return err
+	}
 	h.logger.Info("desktop host stopped")
 	return nil
 }

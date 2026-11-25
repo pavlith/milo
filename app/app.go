@@ -8,6 +8,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"milo.local/platform/core/module"
 )
 
 const (
@@ -18,7 +19,9 @@ const (
 func Run(assets fs.FS) error {
 	application.RegisterEvent[string](hostReadyEvent)
 	application.RegisterEvent[int](closeRequestedEvent)
-	host := &Host{logger: slog.Default()}
+	logger := slog.Default()
+	modules := module.NewManager(logger)
+	host := &Host{logger: logger, modules: modules}
 	customTitlebar := runtime.GOOS == "linux" && os.Getenv("MILO_NATIVE_TITLEBAR") != "1"
 	desktop := application.New(application.Options{
 		Name:        productName,
