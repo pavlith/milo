@@ -16,7 +16,11 @@ Storage, secrets and events are platform facilities with module facades only if 
 
 ## Common lifecycle
 
-A module declares ID and dependencies; composition root registers it, validates order and starts it. Stop releases subscriptions, actions, views and resources. All registrations have owner IDs. Dependency direction is explicit; module UI uses typed host APIs. A failed optional module produces a visible diagnostic; essential startup failure should be reported clearly. No domain imports.
+A module declares ID and dependencies; composition root registers it, validates order and starts it. Stop releases subscriptions, actions, menu entries, views and resources. All registrations have owner IDs. Dependency direction is explicit; module UI uses typed host APIs. A failed optional module produces a visible diagnostic; essential startup failure should be reported clearly. No domain imports.
+
+## Menu contributions
+
+The Stage 02 Workbench Menu Registry supports trusted local registration of independent top-level sections and individual groups, separators, submenus and items in existing sections. A module can contribute layout items to View. Each item names an action ID. Its owner, visibility and enabled state travel with the registration. The registry can remove contributions by owner, and the future module lifecycle will call that cleanup at stop or after failed activation. Stage 07 brings menu contributions under the shared Contribution Registry. [Menu Registry](WORKBENCH.md#menu-registry)
 
 ## Contract expectations
 
@@ -40,6 +44,9 @@ Use owner-scoped cleanup on extension deactivation and host shutdown. Close regi
 The trusted Svelte Workbench reads snapshots and subscribes to state updates through Wails. The footer shows aggregate progress and opens the Tasks view in the bottom Panel. The Tasks view shows active tasks, progress, status, errors and recent outcomes, and calls supported operations such as cancellation through generated bindings. Future extension access goes through capability-scoped SDK contracts.
 
 ### action
+
+Stage 06 will replace the local menu action resolver and connect the Command Center and palette to the Action and Search modules. The Menubar can keep rendering and selecting registered items through the same action adapter. The Action module checks the requesting owner, permissions, context and arguments at dispatch.
+
 Register namespaced ID, title, optional icon/shortcut, context predicate and handler. Invoke by ID with validated arguments, report unavailable and missing actions. Registry handles duplicate IDs, shortcut conflicts, owner cleanup and cancellation. Native/UI/extension action dispatch share the same semantics; frontend handlers and backend handlers need not share one implementation language. Commands from untrusted UI pass capability checks.
 
 ### search

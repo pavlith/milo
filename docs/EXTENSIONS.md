@@ -39,11 +39,17 @@ IDs are namespaced, unique and owned by the manifest identity. Validate API/plat
 
 ## Lifecycle and protocol
 
-discover -> validate -> installed/disabled -> activate -> active -> deactivate -> disabled. Incompatible/failed states expose a diagnostic. MVP activation may be explicit; lazy triggers later. A package can provide frontend-only or backend-only contributions. Activation failure rolls back registrations and terminates any started process. Deactivation removes views/actions/search/status items and event subscriptions, handles dirty editor state, cancels owned work through the Task module and stops owned processes. Use bounded graceful shutdown and then termination. Never let one failure take down the host.
+discover -> validate -> installed/disabled -> activate -> active -> deactivate -> disabled. Incompatible/failed states expose a diagnostic. MVP activation may be explicit; lazy triggers later. A package can provide frontend-only or backend-only contributions. Activation failure rolls back registrations and terminates any started process. Deactivation removes menu entries, views, actions, search providers, status items and event subscriptions, handles dirty editor state, cancels owned work through the Task module and stops owned processes. Use bounded graceful shutdown and then termination. Never let one failure take down the host.
 
 Prefer a supervised subprocess for Go extensions, not plugin.Open, shared Go ABI, or host-side imports. Proposed IPC: JSON-RPC 2.0 over dedicated stdio (or local transport if justified by Wails/platform constraints); no exposed TCP server by default. Frame messages explicitly, negotiate API version and session identity, separate protocol output from diagnostic output, enforce max message size, timeouts and cancellation. The host derives owner identity from the connection; do not trust owner IDs passed by callers. Define explicit stable error codes: incompatible, permission denied, invalid arguments, unavailable, cancelled, internal. Test malformed messages and process exit.
 
 SDK Go and TypeScript clients expose only supported services and contribution registration. The host validates capability grants per call. The SDK must be usable without importing internal host packages. Keep schema examples versioned; do not promise backwards compatibility beyond the documented API version.
+
+## Menu contributions
+
+The Stage 02 menu registry runs inside the trusted Workbench. Stage 06 will connect items to the Action module. Stage 07 will let the Contribution Registry manage menu declarations and owner cleanup. A future extension can contribute an independent top-level section (for example, Mail), add an item to a built-in section such as File, or add a group with items, separators and submenus. A registration carries an owner-scoped ID, placement, order, label when applicable and an action reference for each item. [Menu Registry](WORKBENCH.md#menu-registry)
+
+The extension host must derive ownership from the authenticated session, validate menu metadata and allowed targets, and remove all owner registrations on deactivation or failed activation. The host must authorize action references at registration and recheck action availability, ownership or allowed delegation, permissions and arguments at dispatch. Visibility, enablement and a menu click provide UI context. Authorization comes from the session's grants and the action policy. The SDK will submit declarative contributions through the host bridge. Privileged action handlers and arbitrary UI callbacks stay in trusted code.
 
 ## UI and security boundary
 

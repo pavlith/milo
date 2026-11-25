@@ -1,11 +1,13 @@
 # Milo architecture
 
-## Implemented through Stage 01.1
+## Implemented through Stage 02
 
 - `main.go` starts the native application. `app/` composes the window and the `Host` Wails service. Wails runs startup and shutdown hooks, serves embedded production assets, and uses the loopback Vite dev server during development.
 - The mounted Workbench invokes the generated `WorkbenchReady` binding. The host sends the typed, window-scoped `milo:host-ready` event with the product name. Generated TypeScript lives in `frontend/bindings/`. The host uses Go `slog` for lifecycle messages.
 - `core/` resolves Linux application paths under the XDG config, data and cache roots with the `milo-platform` suffix. It resolves paths without creating directories. GTK uses `io.github.pavlith.milo.platform` for desktop integration, and WebKit uses that identifier for its Linux data and cache profile.
-- `frontend/` contains the Svelte Workbench and the pnpm workspace. It renders the seven regions, one editor group and three lazy-loaded demo views. [Current Workbench behavior](WORKBENCH.md#implemented-through-stage-011)
+- `frontend/` contains the Svelte Workbench and the pnpm workspace. It renders the seven regions, one editor group and three lazy-loaded local views. The unified Header hosts the application menu, Command Center and layout and window controls. One versioned Workbench state holds pane visibility, dimensions and tab metadata. [Current Workbench behavior](WORKBENCH.md#implemented-through-stage-02)
+- On Linux the host configures Wails frameless mode and exposes its choice through Wails flags. The Header calls window operations through the official runtime and observes native maximize/restore events. System decorations are available as a launch option. [Unified Header](WORKBENCH.md#unified-header)
+- The local typed Menu Registry owns menu composition. It exposes ordered registrations to the Svelte Menubar and resolves items through a replaceable action adapter. [Menu Registry](WORKBENCH.md#menu-registry)
 
 ## Platform boundaries
 
@@ -35,7 +37,8 @@ Use versioned storage for settings and workspace layout. Store application data 
 
 | Current mechanism | Planned transition |
 | --- | --- |
-| Versioned `milo.workbench` local storage and Mode Watcher via `milo.state.mode` | Stage 02 keeps safe layout restore. Stage 05 moves durable settings such as theme to Go. Move durable workspace layout and restorable tab metadata to host persistence as their contracts mature. Keep Mode Watcher for theme rendering. |
+| Versioned `milo.workbench` local storage and Mode Watcher via `milo.state.mode` | Stage 05 moves durable settings such as theme to Go. Move durable workspace layout and restorable tab metadata to host persistence as their contracts mature. Keep Mode Watcher for theme rendering. |
 | Static local view catalog and single editor group | Stage 03 develops the tab and editor-group model. Stage 07 introduces owner-scoped contributions for dynamic renderer resolution. |
 | Local palette command list and shortcut handlers | Stage 06 adds action and search contracts. Svelte retains keyboard routing, context handling and presentation. |
+| Owner-scoped Menu Registry and local action resolver | Stage 06 connects menu invocation to Action. Stage 07 moves contribution registration and lifecycle cleanup under the shared registry. The host authorizes extension contributions and action references using authenticated identity and capabilities. |
 | Host lifecycle logs and one readiness event | Keep `slog` and Wails events. Stage 05 adds bounded Output, notifications and Task state using the trusted bridge. |

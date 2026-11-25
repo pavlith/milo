@@ -7,7 +7,7 @@ The table records shipped stages and the acceptance criteria for planned work. S
 | 00 | Slicer workbench extraction | Completed | Domain-neutral web shell builds; no active Java/reverse-engineering/script loader code; reusable panes/tabs retained |
 | 01 | Go + Wails 3 host | Completed | Linux native dev/build; embedded frontend; clean start/stop; paths and minimal typed host bridge |
 | 01.1 | Milo rebrand and architecture consolidation | Completed | Milo Linux build and native smoke; aligned architecture, documentation and Stage 05 Task contract |
-| 02 | Seven-region workbench | Planned | All named regions; hide/resize; safe persisted layout; neutral shadcn theme |
+| 02 | Seven-region Workbench and unified Header | Completed | Seven regions, native Linux window controls with system fallback, independent persisted panes, owner-scoped menu contributions and neutral shadcn theme |
 | 03 | Tabs/editor groups | Planned | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
 | 04 | Module lifecycle and registry | Planned | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
 | 05 | Settings, Notify, Logger & Task | Planned | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
@@ -72,7 +72,25 @@ Verified on Ubuntu 26.10 amd64 with Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Wai
 | Native production smoke with an isolated XDG profile and separate working directory | The embedded Workbench rendered in the Milo window and the readiness binding reached Go. Verified the GTK-scoped WebKit data and cache paths, opening and closing tabs, toggling three panes, and persistence of light, dark and system preferences. Closing the window ran the shutdown hook and exited with code 0. |
 | Repository-wide case-insensitive identifier search | Remaining Slicer references are source attribution, the current source repository URL and historical roadmap evidence. Application code, build configuration and generated bindings use Milo identifiers. |
 
-Stage 02 remains planned. Distribution packaging is outside this verification. JavaScriptCore still reports the pre-existing signal handler override during startup. The native smoke passed and exited cleanly.
+Distribution packaging is outside this verification. JavaScriptCore still reports the pre-existing signal handler override during startup. The native smoke passed and exited cleanly.
+
+## Stage 02 verification
+
+The Workbench has a 36 px unified Header, the existing palette behind the Command Center, independent PaneForge sidebars and panel, and a shadcn-svelte Menubar backed by the local Menu Registry. The version 1 workspace format remains readable. Stages 06 and 07 will integrate Action and the shared Contribution Registry. [Workbench contract](WORKBENCH.md)
+
+Verified on Ubuntu 26.10 amd64 with Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Wails 3.1.0, Node.js 26.13.0 and pnpm 10.19.0.
+
+| Check | Result |
+| --- | --- |
+| `pnpm -C frontend check`, `pnpm -C frontend build` | Passed with zero frontend errors or warnings. |
+| `pnpm -C frontend test` | 12 tests passed. Coverage includes ownership, ordering, nested menu registration, removal and guarded dispatch, workspace size restoration and existing tab operations. |
+| `go test ./...`, `go vet ./...` | Passed. |
+| `WAILS_EXP_USE_WAKE=1 wails3 build` | Built `bin/milo` with embedded frontend assets on Linux amd64. |
+| Chrome headless smoke on the production frontend | Verified the seven regions, 36 px Header, keyboard navigation and View checkmarks, independent pane controls, pointer resizing of all three panes, reopen and reload, invalid workspace recovery, Light, Dark and System themes, and tab open, pin, reorder and close. No client warnings or exceptions. |
+| Native production smoke on GNOME Wayland | Started from a separate working directory with isolated XDG storage. Verified maximize and restore controls, all pane toggles, theme persistence, tab open and close, and clean shutdown through the custom Close button. |
+| Native production smoke on X11 with Xvfb and Openbox | Verified drag from empty Header space, Command Center exclusion from drag, edge resize, double-click maximize and restore, reactive icons after window manager actions, and minimize. Verified system decorations and close with `MILO_NATIVE_TITLEBAR=1`. After restart with the prior XDG profile, verified the active tab and theme, then quit cleanly using File → Quit Milo from the keyboard. |
+
+Pointer drag and resize were verified on X11. Wayland pointer behavior and other platforms were outside the smoke coverage. Wails 3.1 leaves the GTK frame title empty in frameless mode. Launch with `MILO_NATIVE_TITLEBAR=1` on Linux for system decorations. GTK's Wails X11 deprecation warnings and the JavaScriptCore signal handler message also appeared in the Stage 01 environment.
 
 ## Stage 05 acceptance — Settings, Notify, Logger & Task
 

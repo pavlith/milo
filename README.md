@@ -24,7 +24,7 @@ WAILS_EXP_USE_WAKE=1 wails3 build
 
 Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
-The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Sample or Appearance. The tab context menu (**Shift+F10** on a focused tab) offers pin, reorder and close actions. Use the layout buttons and dividers to toggle and resize panes. Appearance switches between light, dark and system modes. The new Milo WebKit profile starts with defaults. Layout, tabs and appearance changes persist in that profile.
+The primary sidebar, **Open tab** and **Ctrl+Shift+P** open Welcome, Sample or Appearance. The tab context menu (**Shift+F10** on a focused tab) offers pin, reorder and close actions. Use the Header buttons or the View menu to toggle panes, and drag the dividers to resize them. Appearance switches between light, dark and system modes. The new Milo WebKit profile starts with defaults. Layout, tabs and appearance changes persist in that profile. Launch with `MILO_NATIVE_TITLEBAR=1 ./bin/milo` to use Linux system window decorations.
 
 ## Generate and verify
 
