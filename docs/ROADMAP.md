@@ -9,7 +9,7 @@ The table records shipped stages and the acceptance criteria for planned work. S
 | 01.1 | Milo rebrand and architecture consolidation | Completed | Milo Linux build and native smoke; aligned architecture, documentation and Stage 05 Task contract |
 | 02 | Seven-region Workbench and unified Header | Completed | Seven regions, native Linux window controls with system fallback, independent persisted panes, owner-scoped menu contributions and neutral shadcn theme |
 | 03 | Tabs/editor groups | Completed | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
-| 04 | Module lifecycle and registry | Planned | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
+| 04 | Module lifecycle and registry | Completed | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
 | 05 | Settings, Notify, Logger & Task | Planned | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
 | 06 | action, search, palette | Planned | Commands/shortcuts, context conflicts, provider cancellation and empty/error states |
 | 07 | Contribution registry | Planned | Owner-scoped views/editors/status/actions; test module can register new types without shell changes |
@@ -19,7 +19,7 @@ The table records shipped stages and the acceptance criteria for planned work. S
 | 11 | Mail extension migration | Planned | Separate extension using the Milo mail-client donor; no mail imports in Core; mail data/security migration plan |
 | 12 | Marketplace and public distribution | Planned | Actual isolation/trust policy, package integrity, publisher validation, update rollback and registry UI |
 
-Stages 00–10, including 01.1, make up Core MVP. Its mandatory modules are `settings`, `notify`, `logger`, `task`, `search`, `action` and `extensions`. Mail, Contacts and Calendar are independent follow-up extensions. Public third-party distribution depends on the isolation and trust requirements in Stage 12. Windows validation is a future milestone.
+Stages 00–10, including 01.1, make up Core MVP. Its mandatory modules are `settings`, `notify`, `logger`, `task`, `search`, `action` and `extensions`. Mail, Contacts and Calendar are independent follow-up extensions. Public third-party distribution depends on the isolation and trust requirements in Stage 12.
 
 ## Stage 00 verification
 
@@ -108,6 +108,22 @@ Verified on Ubuntu 26.10 amd64 with Go 1.27.3, Wails 3.1.0, GTK 4.24.1, WebKitGT
 | Native production smoke on X11 with Xvfb and Openbox | Launched from a separate working directory with an isolated XDG profile. Cancel preserved the sample draft when closing via the custom window control, File → Quit and the window manager's Alt+F4 with system decorations. Save and Discard each allowed a clean host shutdown. Restart restored the sample tab. |
 
 Sample text and recent close history live in the current session. Layout and supported tab references survive restart. The split is horizontal and bounded to two groups. Browser-reserved shortcuts depend on the browser. Linux X11 was the native verification target for this stage. The isolated X11 smoke reported Mesa's DRI3 warning and the pre-existing JavaScriptCore signal handler message.
+
+## Stage 04 verification
+
+The desktop Host starts and shuts down a per-host module manager through the Wails service hooks. The manager validates the complete graph, reports lifecycle snapshots, rolls back partial startup and releases each owner's resources. All registered built-ins are essential. Stage 05 will supply the first production registrations. [Module contract](MODULES.md#common-lifecycle)
+
+Verified on Ubuntu 26.10 linux/amd64 with Go 1.27.3 and Wails 3.1.0.
+
+| Check | Result |
+| --- | --- |
+| `gofmt`, `go test ./...`, `go vet ./...` | Formatted the changed Go files. All packages passed. Module tests exercise invalid definitions, duplicate IDs, missing and cyclic dependencies, deterministic order, snapshot isolation, rollback after partial initialization, stop and cleanup errors, owner isolation, cancellation and repeated shutdown. |
+| `go test -race ./core/module ./app` | Passed, including overlapping startup and shutdown, concurrent shutdown callers, timed waiting and snapshots during callbacks. |
+| `pnpm -C frontend test`, `check`, `build` | All 23 tests passed. Svelte reported zero errors and warnings. Vite built the Workbench and lazy editor chunks. |
+| `WAILS_EXP_USE_WAKE=1 wails3 build` | Built the embedded Linux binary at `bin/milo`. Regenerated bindings matched the checked-in files. |
+| Native X11 smoke with Xvfb, Openbox and isolated XDG storage | The Workbench reported readiness on both launches. Cancel kept a sample draft intact through custom Close, File → Quit and Alt+F4 with system decorations. Save and Discard each ran host shutdown and exited with code 0. The sample tab was restored on restart. |
+
+Shutdown is cooperative. Module callbacks must observe the shared deadline. Lifecycle failure scenarios use test modules, while the native smoke exercises the production host with an empty module inventory. The environment produced the existing GTK X11 deprecation warnings, Mesa DRI3 warning and JavaScriptCore signal-handler message.
 
 ## Stage 05 acceptance — Settings, Notify, Logger & Task
 

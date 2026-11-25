@@ -16,7 +16,26 @@ Storage, secrets and events are platform facilities with module facades only if 
 
 ## Common lifecycle
 
-A module declares ID and dependencies; composition root registers it, validates order and starts it. Stop releases subscriptions, actions, menu entries, views and resources. All registrations have owner IDs. Dependency direction is explicit; module UI uses typed host APIs. A failed optional module produces a visible diagnostic; essential startup failure should be reported clearly. No domain imports.
+Stage 04 implements the Go lifecycle in `core/module`. The production inventory is empty. In Stage 05, construct Settings, Notify, Logger and Task in `app.Run`, inject typed collaborators through their constructors, and call `Manager.Register` for each service before handing the host to Wails. Return registration errors from the composition root.
+
+| `module.Definition` field | Contract |
+| --- | --- |
+| `ID string` | Stable, unique, nonempty name without whitespace or control characters. |
+| `Dependencies []string` | IDs that must be running before Start. Repeated dependency IDs are rejected. |
+| `Start func(context.Context, *module.Scope) error` | Acquire resources and record disposers as each acquisition succeeds. The context spans the module's running lifetime. |
+| `Stop func(context.Context) error` | Stop work within the shared shutdown deadline. Must tolerate partial startup. |
+
+Bind concrete Go methods to these fields at registration. Dependency IDs describe ordering. Constructors receive the actual typed service interfaces. The manager copies dependency lists. `Lookup(id)` and `Inventory()` return independent lifecycle snapshots containing ID, dependencies, state and the latest error text. Inventory is sorted by ID.
+
+The first start or shutdown closes registration permanently. Start checks the whole graph for missing dependencies and cycles before invoking any callback. It traverses module IDs and each dependency list in lexical order, starting each dependency before its consumer. States progress from registered to starting and running. Stop and rollback visit attempted modules in reverse order, moving through stopping to stopped or failed. Modules that were never attempted stay registered.
+
+All registered modules are essential in Stage 04. On error or cancellation during startup, the manager cancels the lifetime context, stops the partially initialized module and rolls back earlier starts with a fresh five-second cleanup budget. Start returns joined initialization and teardown errors. Shutdown cancels the running context, waits for any active start and shares one teardown result across calls. A caller with a shorter deadline can stop waiting. Ordinary teardown uses the first shutdown caller's context with a five-second cap. Stop functions and disposers must cooperate with cancellation, including when earlier callbacks have consumed the budget. A blocked in-process goroutine can outlive a deadline. Lifecycle transitions and errors are recorded through `slog`.
+
+### Owner-scoped cleanup
+
+Each attempted start receives its own scope. Use `scope.Add(func(context.Context) error)` for event unsubscription, action removal, or cancelling and joining a worker. Successful registration transfers responsibility to the scope. If registration is rejected, the caller still owns the resource. Before calling Stop the manager closes that scope to new registrations. It then runs all accepted disposers once in reverse registration order, including after Stop errors. Dependencies retain their resources until their own turn.
+
+Workbench menu and editor registrations already carry an owner. Future adapters can associate their disposers with the same lifecycle, using the editor manager's protected owner-close operation before removing editor types. Svelte owns renderer instances. The shared Contribution Registry is planned for Stage 07.
 
 ## Menu contributions
 

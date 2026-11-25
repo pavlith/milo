@@ -2,6 +2,8 @@
 
 This document defines the planned SDK and extension host. Core MVP targets an explicitly trusted local developer extension. Public untrusted execution and marketplace distribution are later stages.
 
+Stage 04 provides one Go resource scope per trusted built-in module. In Stage 08, the extension host will associate a separate resource lifetime with each authenticated activation. On deactivation it must first resolve dirty editors through the Workbench, then release that owner’s subscriptions, tasks, actions and contributions. Failed activation also requires disposal of partial registrations. Independently installed extensions have their own host lifecycle. [Built-in module cleanup](MODULES.md#owner-scoped-cleanup)
+
 ## Package and manifest
 
 Extensions are separate installable packages, never compiled into the host. First support an unpacked directory installed by an explicit development action. Later the proposed `.miloext` archive can wrap the same layout. Archive installation is future work.

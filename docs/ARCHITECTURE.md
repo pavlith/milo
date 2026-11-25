@@ -1,6 +1,6 @@
 # Milo architecture
 
-## Implemented through Stage 03
+## Implemented through Stage 04
 
 - `main.go` starts the native application. `app/` composes the window and the `Host` Wails service. Wails runs startup and shutdown hooks, serves embedded production assets, and uses the loopback Vite dev server during development.
 - The mounted Workbench invokes the generated `WorkbenchReady` binding. The host sends the typed, window-scoped `milo:host-ready` event with the product name. Generated TypeScript lives in `frontend/bindings/`. The host uses Go `slog` for lifecycle messages.
@@ -27,9 +27,15 @@ The trusted Workbench calls a small typed Wails bridge and receives scoped event
 
 Future module code belongs in `modules/`, public contracts and clients in `sdk/`, and independently buildable examples in `extensions/examples/`. Add these directories with their first consumers. Keep the host in one Go module until independent SDK packaging requires a boundary.
 
-## Planned lifecycle and persistence
+## Built-in module lifecycle
 
-The composition root starts modules in dependency order and stops them in reverse order. Validate duplicate IDs, missing dependencies and cycles before activation. Roll back partial initialization. All registrations have owners and are disposed when the owner stops. Discovery and activation of extensions follow host readiness. Supervision contains extension failures and completes owner-scoped cleanup even if an extension exits unexpectedly.
+`app.Run` creates one `core/module.Manager` per desktop host. Wails 3.1 orders services by registration and supplies an application-lifetime context. Milo uses the existing Host service as the single entry point for module startup and shutdown. The manager adds graph validation, deterministic dependency traversal, partial-start rollback and per-module resource disposal. Its inventory is a Go API within the trusted host. Workbench readiness continues to use the existing generated call and window-scoped event. [Module contract](MODULES.md#common-lifecycle)
+
+The native close and quit gates still wait for the Workbench's dirty-editor decision. Approved shutdown reaches `Host.ServiceShutdown` with a fresh deadline because Wails cancels the application context before shutdown hooks run. Cancelled close leaves the modules running.
+
+## Planned services and persistence
+
+Extension discovery, activation and supervision belong to Stage 08. The host will use authenticated owner identity to clean up resources on deactivation and unexpected process exit.
 
 Use contexts and bounded work in Go. The Task module tracks and cancels background work, and feeds trusted Workbench projections via Wails. Other modules use Task for operations that need user-visible lifecycle and progress. [Task contract](MODULES.md#task)
 
