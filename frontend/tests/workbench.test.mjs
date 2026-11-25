@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { columns, resizePane, restoreWorkbench, rows } from "../src/lib/state.ts";
+import { columns, resizableRegions, resizePane, restoreWorkbench, rows, togglePane } from "../src/lib/state.ts";
 import { closeTabs, focusTab, moveTab, openTab, pinTab, reorderTabs } from "../src/lib/tab.ts";
 
 const viewIds = ["welcome", "sample", "appearance"];
@@ -115,4 +115,18 @@ test("collapsing remembers the last size and the versioned layout round-trips", 
         restoreWorkbench(JSON.parse(JSON.stringify({ ...state, panes: collapsed })), viewIds).panes,
         collapsed
     );
+});
+
+test("visibility toggles preserve each region's size across workspace restoration", () => {
+    const state = restoreWorkbench(null, viewIds);
+    for (const region of resizableRegions) {
+        const expanded = resizePane(state.panes, region, 31);
+        const hidden = togglePane(expanded, region);
+        assert.deepEqual(hidden[region], { open: false, size: 31 });
+        for (const other of resizableRegions.filter((id) => id !== region)) {
+            assert.strictEqual(hidden[other], state.panes[other]);
+        }
+        const restored = restoreWorkbench(JSON.parse(JSON.stringify({ ...state, panes: hidden })), viewIds);
+        assert.deepEqual(togglePane(restored.panes, region), expanded);
+    }
 });

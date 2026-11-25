@@ -88,7 +88,13 @@ export const rows = (panes: PanePreferences) => {
     return [100 - panel, panel];
 };
 
+export const togglePane = (panes: PanePreferences, region: ResizableRegion): PanePreferences => ({
+    ...panes,
+    [region]: { ...panes[region], open: !panes[region].open },
+});
+
 export const resizePane = (panes: PanePreferences, region: ResizableRegion, size: number): PanePreferences => {
+    if (!Number.isFinite(size)) return panes;
     const pane = panes[region];
     const { min, max } = paneLimits[region];
     const open = size > 0;

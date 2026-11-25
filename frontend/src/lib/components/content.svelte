@@ -4,34 +4,34 @@
     import { Button } from "$lib/components/ui/button";
     import { ResizableHandle, ResizablePane, ResizablePaneGroup } from "$lib/components/ui/resizable";
     import { t } from "$lib/i18n";
-    import { columns, paneLimits, resizePane, rows, type PanePreferences } from "$lib/state";
+    import { columns, paneLimits, rows, type PanePreferences, type ResizableRegion } from "$lib/state";
     import type { TabState } from "$lib/tab";
     import { untrack } from "svelte";
 
     interface Props {
         panes: PanePreferences;
         editor: TabState;
-        onlayout: (panes: PanePreferences) => void;
+        onresize: (region: ResizableRegion, size: number) => void;
         oneditor: (editor: TabState) => void;
         onopen: (id: string) => void;
     }
 
-    let { panes, editor, onlayout, oneditor, onopen }: Props = $props();
+    let { panes, editor, onresize, oneditor, onopen }: Props = $props();
     let horizontal: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
     let vertical: ReturnType<typeof ResizablePaneGroup> | undefined = $state();
 
     const initialColumns = untrack(() => columns(panes));
     const initialRows = untrack(() => rows(panes));
 
-    export const applyLayout = (next: PanePreferences) => {
-        horizontal?.setLayout(columns(next));
-        vertical?.setLayout(rows(next));
+    export const applyLayout = (next: PanePreferences, region: ResizableRegion) => {
+        if (region === "panel") vertical?.setLayout(rows(next));
+        else horizontal?.setLayout(columns(next));
     };
 
-    const resizeColumns = ([primary, , secondary]: number[]) =>
-        onlayout(resizePane(resizePane(panes, "primary", primary), "secondary", secondary));
-
-    const resizeRows = ([, panel]: number[]) => onlayout(resizePane(panes, "panel", panel));
+    const resizeColumns = ([primary, , secondary]: number[]) => {
+        onresize("primary", primary);
+        onresize("secondary", secondary);
+    };
 </script>
 
 <ResizablePaneGroup bind:this={horizontal} direction="horizontal" class="min-w-0 flex-1" onLayoutChange={resizeColumns}>
@@ -75,7 +75,11 @@
         defaultSize={initialColumns[1]}
         minSize={100 - paneLimits.primary.max - paneLimits.secondary.max}
     >
-        <ResizablePaneGroup bind:this={vertical} direction="vertical" onLayoutChange={resizeRows}>
+        <ResizablePaneGroup
+            bind:this={vertical}
+            direction="vertical"
+            onLayoutChange={([, panel]) => onresize("panel", panel)}
+        >
             <ResizablePane
                 id="editor"
                 data-region="editor"

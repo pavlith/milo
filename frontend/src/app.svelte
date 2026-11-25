@@ -10,18 +10,20 @@
         loadWorkbench,
         modeStorageKey,
         resizableRegions,
+        resizePane,
         saveWorkbench,
+        togglePane,
         type PanePreferences,
         type ResizableRegion,
     } from "$lib/state";
     import { closeTabs, openTab, type TabState } from "$lib/tab";
-    import { LayoutGrid, PanelBottom, PanelRight, X } from "@lucide/svelte";
+    import { LayoutGrid, PanelBottom, PanelLeft, PanelRight, X } from "@lucide/svelte";
     import { ModeWatcher } from "mode-watcher";
     import { onMount } from "svelte";
 
     const paletteBinding = { key: "p", shift: true };
     const closeBinding = { key: "w" };
-    const paneIcons = { primary: LayoutGrid, secondary: PanelRight, panel: PanelBottom };
+    const paneIcons = { primary: PanelLeft, panel: PanelBottom, secondary: PanelRight };
 
     let workbench = $state.raw(loadWorkbench(views.map((view) => view.id)));
     let content: ReturnType<typeof Content> | undefined = $state();
@@ -41,12 +43,13 @@
     const closeActive = () => {
         if (workbench.editor.activeId) updateEditor(closeTabs(workbench.editor, workbench.editor.activeId));
     };
-    const togglePane = (region: ResizableRegion) => {
-        const pane = workbench.panes[region];
-        const panes = { ...workbench.panes, [region]: { ...pane, open: !pane.open } };
+    const toggleRegion = (region: ResizableRegion) => {
+        const panes = togglePane(workbench.panes, region);
         updateLayout(panes);
-        content?.applyLayout(panes);
+        content?.applyLayout(panes, region);
     };
+    const resizeRegion = (region: ResizableRegion, size: number) =>
+        updateLayout(resizePane(workbench.panes, region, size));
 
     $effect(() => saveWorkbench(workbench));
 
@@ -103,7 +106,7 @@
                 $t("workbench." + region)
             ),
             icon: paneIcons[region],
-            run: () => togglePane(region),
+            run: () => toggleRegion(region),
         })),
         ...(workbench.editor.activeId
             ? [{ id: "close", label: $t("workbench.command.close"), icon: X, binding: closeBinding, run: closeActive }]
@@ -120,14 +123,14 @@
     {@const Icon = paneIcons[region]}
     {@const label = $t("workbench." + region)}
     <Button
-        size="icon-sm"
+        size="icon-xs"
         variant="ghost"
         title={label}
         aria-label={label}
         aria-controls={region}
         aria-pressed={workbench.panes[region].open}
-        class="aria-pressed:bg-accent"
-        onclick={() => togglePane(region)}
+        class="aria-pressed:border-input aria-pressed:bg-background size-7 rounded-sm transition-none active:translate-y-0"
+        onclick={() => toggleRegion(region)}
     >
         <Icon />
     </Button>
@@ -141,8 +144,9 @@
     paletteShortcut={formatShortcut(paletteBinding)}
 >
     {#snippet layoutControls()}
-        {@render paneButton("secondary")}
+        {@render paneButton("primary")}
         {@render paneButton("panel")}
+        {@render paneButton("secondary")}
     {/snippet}
 </WorkbenchHeader>
 
@@ -152,13 +156,24 @@
         aria-label={$t("workbench.left")}
         class="bg-muted/50 flex w-11 shrink-0 justify-center border-r pt-1.5"
     >
-        {@render paneButton("primary")}
+        <Button
+            variant="ghost"
+            size="icon-sm"
+            class="aria-pressed:border-input aria-pressed:bg-background rounded-sm transition-none"
+            title={$t("workbench.views")}
+            aria-label={$t("workbench.views")}
+            aria-controls="primary"
+            aria-pressed={workbench.panes.primary.open}
+            onclick={() => toggleRegion("primary")}
+        >
+            <LayoutGrid />
+        </Button>
     </nav>
     <Content
         bind:this={content}
         panes={workbench.panes}
         editor={workbench.editor}
-        onlayout={updateLayout}
+        onresize={resizeRegion}
         oneditor={updateEditor}
         onopen={open}
     />
