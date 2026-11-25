@@ -41,7 +41,7 @@ export function restoreEditorWorkspace(value: unknown, registry: EditorRegistry)
             if (!resolved || resolved.registration.ownerId !== ownerId) continue;
             if (singletons.has(editorTypeId)) continue;
 
-            const isPreview =
+            const isPreview: boolean =
                 preview === true && pinned !== true && !hasPreview && resolved.registration.preview !== false;
             tabs.push({
                 ...resolved.metadata,

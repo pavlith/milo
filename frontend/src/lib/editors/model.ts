@@ -36,6 +36,11 @@ export interface EditorInput {
     resource?: ResourceRef;
 }
 
+export interface EditorChoice extends EditorInput, EditorMetadata {
+    id: string;
+    preview?: boolean;
+}
+
 export interface OpenEditorOptions {
     groupId?: string;
     newInstance?: boolean;

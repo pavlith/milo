@@ -76,5 +76,15 @@
     "workbench.editor.operationFailed": "Editor changes are still open",
     "workbench.editor.failed.save": "Changes to “{0}” were not saved.",
     "workbench.editor.failed.discard": "Changes to “{0}” could not be discarded.",
-    "workbench.editor.ok": "OK"
+    "workbench.editor.ok": "OK",
+    "workbench.editor.group": "Editor group {0}",
+    "workbench.editor.split": "Split Editor Right",
+    "workbench.editor.focusOther": "Focus Other Editor Group",
+    "workbench.editor.closeGroup": "Close Editor Group",
+    "workbench.editor.moveGroup": "Move to Other Editor Group",
+    "workbench.editor.resizeGroups": "Resize editor groups",
+    "workbench.editor.newInstance": "Open New Instance",
+    "workbench.editor.keepOpen": "Keep Open",
+    "workbench.editor.dirty": "Unsaved changes",
+    "workbench.editor.preview": "Preview"
 }

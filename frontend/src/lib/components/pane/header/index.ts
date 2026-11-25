@@ -1,4 +1,4 @@
+import PaneHeaderItem from "../../editor-area/editor-tab.svelte";
 import PaneHeader from "./header.svelte";
-import PaneHeaderItem from "./item.svelte";
 
 export { PaneHeader, PaneHeaderItem };

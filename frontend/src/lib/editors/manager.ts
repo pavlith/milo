@@ -2,9 +2,11 @@ import type { EditorContext, EditorFeedback, EditorOperation, EditorSession } fr
 import {
     activeTab,
     editorWorkspace,
+    emptyGroup,
     newEditorId,
     pinnedFirst,
     removeTabs,
+    splitMinSize,
     type CloseMode,
     type Direction,
     type EditorGroup,
@@ -116,6 +118,93 @@ export class EditorManager {
         if (tabs.length < 2) return;
         const index = tabs.findIndex((tab) => tab.id === activeId);
         this.focusTab(tabs[(index + direction + tabs.length) % tabs.length].id);
+    }
+
+    splitRight(): void {
+        if (this.closing || this.shuttingDown) return;
+        const source = this.focusedGroup;
+        const right = this.workspace.groups[1] ?? this.addRightGroup();
+        if (source === right) return;
+        const tab = activeTab(source);
+        if (tab && this.registry.get(tab.editorTypeId)?.kind === "resource") {
+            if (this.open(tab, { groupId: right.id })) return;
+        }
+        this.focusGroup(right.id);
+    }
+
+    focusOtherGroup(): void {
+        const other = this.workspace.groups.find((group) => group.id !== this.workspace.focusedGroupId);
+        if (other) this.focusGroup(other.id);
+    }
+
+    moveToOtherGroup(id: string): void {
+        if (this.closing || this.shuttingDown) return;
+        const source = this.findGroup(id);
+        if (!source) return;
+        const target = this.workspace.groups.find((group) => group !== source) ?? this.addRightGroup();
+        this.moveTab(id, target.id);
+    }
+
+    moveTab(id: string, targetId: string, beforeId?: string): void {
+        if (this.closing || this.shuttingDown) return;
+        const source = this.findGroup(id);
+        const target = this.group(targetId);
+        const tab = source?.tabs.find((item) => item.id === id);
+        if (!source || !target || !tab || id === beforeId) return;
+
+        const tabs = target.tabs.filter((item) => item.id !== id);
+        const before = tabs.findIndex((item) => item.id === beforeId);
+        if (source === target) {
+            tabs.splice(before < 0 ? tabs.length : before, 0, tab);
+            this.reorder(
+                targetId,
+                tabs.map((item) => item.id)
+            );
+            this.focusTab(id);
+            return;
+        }
+
+        tabs.splice(before < 0 ? tabs.length : before, 0, {
+            ...tab,
+            groupId: targetId,
+            preview: tab.preview && !tabs.some((item) => item.preview),
+        });
+        const groups = this.workspace.groups.map((group) =>
+            group === source ? removeTabs(group, new Set([id])) : { ...target, tabs: pinnedFirst(tabs), activeId: id }
+        );
+        this.update({ ...this.workspace, groups, focusedGroupId: targetId });
+    }
+
+    closeGroup(id: string): Promise<boolean> {
+        const group = this.group(id);
+        const other = this.workspace.groups.find((item) => item !== group);
+        if (!group || !other) return Promise.resolve(false);
+
+        // Group closing is a bulk operation. Preserve its pinned tabs in the remaining group.
+        const targets = group.tabs.filter((tab) => !tab.pinned);
+        return this.protectClose(targets, () => {
+            const remaining = this.group(other.id)!;
+            const pinned = this.group(id)!
+                .tabs.filter((tab) => tab.pinned)
+                .map((tab) => ({ ...tab, groupId: other.id }));
+            const tabs = pinnedFirst([...remaining.tabs, ...pinned]);
+            const activeId = remaining.activeId ?? tabs[0]?.id ?? null;
+            this.rememberClosed(targets, group);
+            for (const tab of targets) this.disposeSession(tab.id);
+            this.update({ ...this.workspace, groups: [{ ...remaining, tabs, activeId }], focusedGroupId: other.id });
+        });
+    }
+
+    resizeGroups(size: number): void {
+        if (this.workspace.groups.length !== 2 || !Number.isFinite(size)) return;
+        const leftSize = Math.min(100 - splitMinSize, Math.max(splitMinSize, size));
+        if (leftSize !== this.workspace.leftSize) this.update({ ...this.workspace, leftSize });
+    }
+
+    private addRightGroup(): EditorGroup {
+        const right = emptyGroup(newEditorId());
+        this.update({ ...this.workspace, groups: [...this.workspace.groups, right] });
+        return right;
     }
 
     async close(groupId: string, mode: CloseMode, id?: string): Promise<boolean> {
