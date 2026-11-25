@@ -1,6 +1,6 @@
 # Milo
 
-Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The native Workbench includes up to two editor groups and four built-in modules. The Settings dialog manages durable preferences, Output shows structured logs, Notifications keeps an in-app inbox, and Tasks tracks cancellable Go operations. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
+Milo is a universal, extensible Linux-first desktop platform built with Go, Wails 3, Svelte 5 and shadcn-svelte. The native Workbench includes up to two editor groups and six built-in modules. The Settings dialog manages durable preferences, Output shows structured logs, Notifications keeps an in-app inbox, and Tasks tracks cancellable Go operations. See the [documentation](./docs/README.md) and [roadmap](./docs/ROADMAP.md).
 
 ## Prerequisites
 
@@ -37,11 +37,13 @@ Use `task start:x11` or `task start:wayland` to rebuild first, and `task dev:x11
 
 Dev mode serves frontend updates via Vite on loopback. End a dev session with **Ctrl+C** in the terminal. The production binary embeds `frontend/dist/` and runs from any working directory. Closing the last native window stops the host and runs the Wails service shutdown hook. The Linux desktop entry expects `milo` on `PATH`.
 
+Click **Search** in the Header or press **Ctrl+P** to find open tabs, editor choices, settings, commands and tasks. Press **Ctrl+Shift+P** or type **>** in Search to switch to commands. Use the arrow keys and Enter to select a result, and Escape to return focus to the Workbench.
+
 Select **Views** in the Activity Bar to show Welcome, Sample and Sample B in the Primary Sidebar. They are also available from **Open tab** and **Ctrl+Shift+P**. The sidebar opens samples in preview. Double-click the tab to keep it open, or use **Shift+F10** on its label for pinning, reordering, opening a new instance, moving between groups and closing. Editing a sample creates a draft. Save and discard operate on the draft during the current session. Closing with unsaved changes prompts for a decision, including when quitting Milo.
 
 Use **View → Split Editor Right** or **Ctrl+\** to split. Drag tabs between groups and move the divider to resize them. **Ctrl+Tab** and **Ctrl+Shift+Tab** switch tabs. **Ctrl+W** closes the active tab and **Ctrl+Shift+T** reopens a closed one. Pane visibility and tab layout are restored from the WebKit profile. Go stores the theme and other durable preferences in `${XDG_CONFIG_HOME:-$HOME/.config}/milo-platform/settings.json`. Sample text is kept in memory.
 
-Open **Settings** from the Activity Bar, **Edit → Settings** or the command palette to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Launch with `task run:native` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
+Open **Settings** from the Activity Bar, **Edit → Settings** or the command palette to search preferences, reset a category or switch between Light, Dark and System. **View → Output** and **View → Tasks** open the bottom Panel. The footer opens the Notification Center and shows active task progress. Task notifications include a **Tasks** action in the center and on live toasts. Launch with `task run:native` to use Linux system window decorations. [Workbench behavior](./docs/WORKBENCH.md)
 
 ## Generate and verify
 
@@ -49,14 +51,14 @@ Open **Settings** from the Activity Bar, **Edit → Settings** or the command pa
 task bindings
 task check
 task test
-task frontend:build
+task build
 task test:race
 task verify
 ```
 
 The generated bindings are checked in for frontend-only checks. Regenerate them when Go service methods or Wails events change. The Wails build also generates bindings before compiling the frontend.
 
-Run `task test:race` for lifecycle and concurrency coverage. Focused scenarios exercise persistence and recovery, notification publication and dismissal, structured logs, task progress, success, failure and cancellation. [Module contract](./docs/MODULES.md#common-lifecycle)
+Run `task test:race` for lifecycle and concurrency coverage. Focused scenarios exercise module lifecycle, editor close protection, action dispatch, shortcut conflicts, and progressive search with cancellation and isolated provider failures. [Module contract](./docs/MODULES.md#common-lifecycle)
 
 Use `task fmt` to format sources, `task version` to inspect the toolchain and `task version:binary` to inspect the built binary. `task clean` removes generated build outputs only. `task verify` installs locked dependencies, regenerates bindings, runs checks and tests, and builds the production binary.
 

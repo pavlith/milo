@@ -2,7 +2,7 @@
 
 ## App Shell
 
-The shell renders seven regions with one or two side-by-side editor groups. The Primary Sidebar, Open Tab menu and local command palette open trusted editors. Each editor group owns its tab bar, active renderer and preview. The Status Bar shows the focused editor and its dirty state.
+The shell renders seven regions with one or two side-by-side editor groups. The Primary Sidebar, Open Tab menu and Command Center open trusted editors. Each editor group owns its tab bar, active renderer and preview. The Status Bar shows the focused editor and its dirty state.
 
 ```text
 App Shell
@@ -54,17 +54,17 @@ The Activity Bar follows the fixed icon sidebar from `sidebar-09` and the conten
 
 Milo uses Wails 3 frameless mode on Linux. Empty Header space uses Wails drag regions, and the menu, Command Center and buttons opt out of dragging. A double-click on empty Header space toggles maximize/restore. The window buttons call the Wails runtime for minimize, maximize/restore and close. The maximize button reads the initial native state and follows Wails window events, including changes from the window manager. Wails handles edge resize and the host sets a minimum window size of 720 × 480. Launch with `task run:native` to use system decorations on Linux. Use `task run:x11` or `task run:wayland` to select a graphics backend for the current launch. Other platforms use system decorations by default. The Workbench Header stays available with system decorations and in browser previews. [Wails frameless windows](https://v3.wails.io/features/windows/frameless/)
 
-The Command Center opens the existing local palette and displays its shortcut. Stage 06 adds the Action and Search modules and connects them to the palette. File opens the palette and can quit the native app. Edit opens Settings. View controls the three panes and exposes editor operations, including split, navigation, focus and close. It also opens Output, Tasks and the Notification Center. Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
+The Header Command Center opens Search and displays its registered shortcut. Search and Command Palette share one dialog. File opens the palette and can quit the native app. Edit opens Settings. View controls the three panes and exposes editor operations, including split, navigation, focus and close. It also opens Output, Tasks and the Notification Center. Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
 
 The Command Center, pane controls and window controls share a zero-delay tooltip. Button hover states and menu opening use immediate visual feedback.
 
 ## Menu Registry
 
-The trusted Workbench builds the application menu from a local typed registry. A section is a top-level menu. Items, groups, separators and submenus use a parent ID to join an existing section, group or submenu. Siblings sort by order with registration order breaking ties. Contributions support visibility and enabled predicates. An item references an action ID and may supply a checked predicate and a shortcut label. The label displays a shortcut and actual key bindings remain with the shortcut handler.
+The trusted Workbench builds the application menu from a local typed registry. A section is a top-level menu. Items, groups, separators and submenus use a parent ID to join an existing section, group or submenu. Siblings sort by order with registration order breaking ties. Contributions support visibility and enabled predicates. An item references an action ID and may supply a presentation label and checked predicate. The Menubar reads shortcut labels from Action metadata.
 
 Each registration has an owner and a globally unique menu ID under that owner's namespace. Registering returns a disposer. The registry also supports unregistering by ID and removing all entries owned by one owner. Removing a parent makes its descendants unreachable. Surviving registrations from other owners can reappear when a compatible parent returns. Selection rechecks that the item and its ancestors are still available and resolves the action using its ID and the item's owner.
 
-Stage 06 replaces the Workbench's local action resolver with the Action module. Stage 07 connects menu declarations and cleanup to the shared Contribution Registry. The future extension host will derive owner identity from the session, validate attachment targets and authorize action invocation against that identity and the session's capabilities. [Module contracts](MODULES.md#action) · [Extension contributions](EXTENSIONS.md#menu-contributions)
+The component sends selections to the Action dispatcher. Stage 07 connects menu declarations and cleanup to the shared Contribution Registry. The future extension host will derive owner identity from the session, validate attachment targets and authorize action invocation against that identity and the session's capabilities. [Module contracts](MODULES.md#action) · [Extension contributions](EXTENSIONS.md#menu-contributions)
 
 ## UI standards
 
@@ -88,7 +88,7 @@ Closing an active tab prefers the previous remaining tab and then the next at th
 
 An editor type can create a per-instance session with a state change callback and optional `save`, `discard` and `dispose` operations. Renderers receive the session and the manager-backed save and discard operations. The session reports dirty state on edits. A provider returning `true` completes save or discard. A failed operation, cancellation or a new edit that arrives during an asynchronous operation keeps the editor open. Disposal releases the session after closing or replacing a clean preview.
 
-One shadcn-svelte Alert Dialog handles individual, bulk, group, owner and application close decisions. Cancel leaves the requested tabs open. For bulk closes the manager collects decisions before performing them, then runs saves before discards and removes tabs once operations succeed. Group close preserves pinned tabs by moving them with their sessions to the remaining group. Quit checks all groups, including inactive and pinned tabs. The Go host uses Wails 3.1 `RegisterHook` on `WindowClosing` and `ShouldQuit` to relay the request to the same manager. The browser preview uses the browser's reload and close confirmation while dirty. [Wails window events](https://v3.wails.io/features/windows/events/)
+One shadcn-svelte Alert Dialog handles individual, bulk, group, owner and application close decisions. Cancel leaves the requested tabs open. For bulk closes the manager collects decisions before performing them, then runs saves before discards and removes tabs once operations succeed. Group close preserves pinned tabs by moving them with their sessions to the remaining group. Quit checks all groups, including inactive and pinned tabs. The Go host uses Wails `RegisterHook` on `WindowClosing` and `ShouldQuit` to relay the request to the same manager. The browser preview uses the browser's reload and close confirmation while dirty. [Wails window events](https://v3.wails.io/features/windows/events/)
 
 ### Groups and keyboard
 
@@ -100,10 +100,15 @@ One shadcn-svelte Alert Dialog handles individual, bulk, group, owner and applic
 | Ctrl+W | Close the focused group's active tab |
 | Ctrl+Shift+T | Reopen the most recently closed tab |
 | Ctrl+Backslash | Split Editor Right |
-| Ctrl+Shift+P | Open the local command palette |
+| Ctrl+Shift+P | Open Command Palette |
+| Ctrl+P | Open Search |
 | Shift+F10 on a tab | Open its context menu |
 
-The shortcut handler respects events already handled by the focused control. Browsers may reserve tab and window shortcuts. **Focus Other Editor Group**, **Move to Other Editor Group** and **Close Editor Group** are also available in the menus and palette.
+One Workbench listener checks registry bindings against the active editor, group, group count, focused editable control and active dialog layer. A matching context-specific binding takes precedence over a global one. Within that rank a logical key match takes precedence over a physical fallback. Equally ranked conflicts leave the event untouched. Disabled actions do not claim a shortcut. Repeats, IME composition and events already handled by the focused control are ignored. Editable controls accept only bindings explicitly enabled there. The palette, Search and modal dialogs isolate Workbench shortcuts. Browsers may reserve tab and window shortcuts. **Focus Other Editor Group**, **Move to Other Editor Group** and **Close Editor Group** are also available in the menus and palette.
+
+### Command Palette and Search
+
+Palette mode starts with `>` and filters available commands immediately. Typing `>` as the first character enters palette mode, and removing it returns to Search. Search groups results by provider. Local editor results can focus an existing tab or open a registered choice. Settings results open the category in the Settings dialog. Task history results open the Tasks panel. Pending providers leave completed groups usable. Failed or timed-out groups show their own status. Use arrows and Enter to select, and Escape to close and restore focus to the previous control.
 
 ### Workspace storage
 
@@ -116,13 +121,13 @@ The snapshot contains metadata only. Dirty state, draft text, saved demo text, r
 - **Settings** opens as a modal from the Activity Bar, Edit menu or palette. The `sidebar-13` layout uses a fixed category sidebar and independently scrollable settings content. Categories come from the existing Settings projection. Search matches across categories. Each preference can be reset individually, and resetting a category asks for confirmation. Theme, notification toasts, editor status and the minimum capture level take effect across the Workbench. [Official settings block](https://www.shadcn-svelte.com/view/sidebar-13)
 - **Output** filters retained logs by minimum visible severity, owner and text. Select rows to copy specific records or copy all matching rows. Auto-scroll and clear controls operate on the Output view.
 - **Tasks** shows active progress, supported cancellations and recent outcomes. If any active operation has indeterminate progress, the footer shows an indeterminate aggregate. Otherwise it shows the average across active tasks. Clicking the indicator opens Tasks. The Cancel control signals Go and shows Cancelling until execution finishes.
-- **Notifications** opens from the footer bell or View. The footer count tracks unread entries. The center marks one or all as read, dismisses individual entries, and clears the in-app history. Toasts and the center use the same Go projection.
+- **Notifications** opens from the footer bell or View. The footer count tracks unread entries. The center marks one or all as read, dismisses individual entries, and clears the in-app history. Toasts and the center use the same Go projection and dispatch action references with the notification owner. Live toasts offer one enabled action when available. Inbox actions remain visible when unavailable.
 
-Output and Tasks use shadcn-svelte Tabs. The header has the tab list on the left. In Output, the level and owner selectors and text filter precede the Copy button. At narrow widths the Output controls can wrap below the tabs. The active content fills the width below the header and scrolls within the pane. The tab views mount on the first expansion and stay mounted when the panel closes. The collapsed panel skips layout and Output auto-scroll, and keeps the selected tab and filters. Go tasks continue running. System menu entries use the owner-scoped Menu Registry and local command adapter. [Module APIs](MODULES.md#implemented-services)
+Output and Tasks use shadcn-svelte Tabs. The header has the tab list on the left. In Output, the level and owner selectors and text filter precede the Copy button. At narrow widths the Output controls can wrap below the tabs. The active content fills the width below the header and scrolls within the pane. The tab views mount on the first expansion and stay mounted when the panel closes. The collapsed panel skips layout and Output auto-scroll, and keeps the selected tab and filters. Go tasks continue running. System menu entries use the owner-scoped Menu Registry and the Action dispatcher. [Module APIs](MODULES.md#implemented-services)
 
 ## Activity contributions
 
-Trusted Workbench code can use `activityRegistry.register` to supply an Activity Bar entry and its Primary Sidebar navigation. A registration includes an owner, a namespaced ID, title, optional icon and navigation items with actions. The registry publishes live changes and supports disposal and owner cleanup. The built-ins register Views with their editor choices and Tasks with its existing panel action. The Menu Registry and Editor Registry retain their existing contracts. [Extension contributions](EXTENSIONS.md)
+Trusted Workbench code can use `activityRegistry.register` to supply an Activity Bar entry and its Primary Sidebar navigation. A registration includes an owner, a namespaced ID, title, optional icon and navigation items with action IDs and optional arguments. The registry publishes live changes and supports disposal and owner cleanup. The built-ins register Views with their editor choices and Tasks with its existing panel action. The Menu Registry and Editor Registry retain their existing contracts. [Extension contributions](EXTENSIONS.md)
 
 ## Planned contributions
 

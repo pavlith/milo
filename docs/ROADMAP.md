@@ -11,7 +11,7 @@ The table records shipped stages and the acceptance criteria for planned work. S
 | 03 | Tabs/editor groups | Completed | Preview, pin, close, reopen, reorder, dirty protection, bounded split, restore and lazy registry resolution |
 | 04 | Module lifecycle and registry | Completed | Explicit dependencies/start/stop/cleanup, duplicate/cycle handling, no domain coupling |
 | 05 | Settings, Notify, Logger & Task | Completed | Settings persistence, notifications, Output, cancellable Go tasks, bounded history and Task UI with zero extensions required |
-| 06 | action, search, palette | Planned | Commands/shortcuts, context conflicts, provider cancellation and empty/error states |
+| 06 | Action, Search and Command Palette | Completed | Unified dispatch, contextual shortcuts, cancellable provider search, notification actions and native Linux smoke |
 | 07 | Contribution registry | Planned | Owner-scoped views/editors/status/actions; test module can register new types without shell changes |
 | 08 | SDK and extension host | Planned | Versioned manifest/protocol, local discovery/activation, lifecycle/permissions, isolated UI spike |
 | 09 | Independent Hello World extension | Planned | Separate packaging/install, view and editor tab, action/search/log/notify, disable/re-enable/uninstall, failure isolation |
@@ -142,3 +142,21 @@ Verified on Ubuntu 26.10 linux/amd64 with Go 1.27.3, Wails 3.1.0, GTK 4.24.1, We
 | Native Workbench regression smoke | Verified the new menu entries alongside editor split, bottom Panel resize, maximize and restore, and dirty-window close. Cancel preserved the draft and Discard exited cleanly. The production binary later restored the resized Panel, both groups, sample tabs and the Dark setting from that profile. |
 
 The task fixture is test-only. Logs, notifications and recent tasks retain a bounded history for the running host. Notifications use in-app delivery. A background operation must cooperate with context cancellation for cleanup to finish within the shutdown budget. Native verification covered Linux Wayland. The smoke environment reported the existing Wails GTK X11 build deprecations and JavaScriptCore signal-handler message.
+
+
+## Stage 06 verification
+
+Action and Search are built-in modules with owner-scoped registrations and disposal. The Workbench dispatches local actions in Svelte and calls Go actions through generated Wails bindings. One Command Center hosts both modes. The Go Tasks provider searches live task history. Action references from search and notifications use the same dispatcher as menus and shortcuts. [Module APIs](MODULES.md#action) · [Workbench interaction](WORKBENCH.md#command-palette-and-search)
+
+Verified on Ubuntu 26.10 linux/amd64 with Wails v3.2.0-nightly.20261123, Go 1.27.3, GTK 4.24.1, WebKitGTK 2.52.6, Node.js 26.13.0 and pnpm 10.19.0.
+
+| Check | Result |
+| --- | --- |
+| `task bindings` | Generated the typed Action and Search facades, notification action arguments and window-scoped catalog events. |
+| `task check` | Svelte reported zero errors and warnings. Go vet passed. |
+| `task test`, `task test:race` | All 37 frontend tests and all Go packages passed. Race coverage includes the new module registries. Tests exercise duplicate IDs, argument and ownership checks, shortcut conflicts, dirty close, progressive results, timeouts, provider isolation and stale responses. |
+| `task build` | Wake built the Linux amd64 production binary with the embedded Workbench. |
+| `task run:x11` with Xvfb and isolated XDG storage | Verified command execution, editor and settings search, tab shortcuts, modal isolation, focus restoration, pane toggles, the Go Clear Output action, dirty-close protection and clean shutdown. |
+| Native X11 smoke with a temporary Go fixture | Invoked the Tasks action from a live toast and Notification Center. Verified Go-backed task search, cancellation reaching a Go provider and partial results remaining available when another provider failed. |
+
+The native smoke covered X11. Search covers commands, registered editors, preferences and in-memory task history. The Contribution Registry and extension runtime remain scheduled for their own stages. The test fixture stays outside the shipped application.

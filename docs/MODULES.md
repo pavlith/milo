@@ -1,6 +1,6 @@
 # Built-in Modules
 
-Core MVP has seven trusted host modules. Stage 05 ships four system modules with native Workbench views.
+Core MVP has seven trusted host modules. Stage 06 ships six system modules.
 
 | Module | Status | Workbench contributions |
 | --- | --- | --- |
@@ -8,13 +8,13 @@ Core MVP has seven trusted host modules. Stage 05 ships four system modules with
 | Logger | Available | Output tab in the bottom Panel |
 | Notify | Available | Toasts, Footer badge and Notification Center |
 | Task | Available | Tasks tab in the bottom Panel and Footer progress |
-| Action | Planned, Stage 06 | Command Palette, menus and shortcuts |
-| Search | Planned, Stage 06 | Provider search in the Workbench |
+| Action | Available | Command Palette, menus and shortcuts |
+| Search | Available | Provider search in the Workbench |
 | Extensions | Planned, Stage 08 | Installed package inventory and activation |
 
 ## Common lifecycle
 
-The Go Module Manager in `core/module` runs explicit registrations from the composition root. Logger depends on Settings for its minimum level. Task depends on Logger and Notify for diagnostics and outcomes. Settings and Notify have no declared dependencies. The built-ins start in the order Settings, Logger, Notify, Task and stop in reverse order.
+The Go Module Manager in `core/module` runs explicit registrations from the composition root. Logger depends on Settings for its minimum level. Logger also depends on Action for the Output command. Task depends on Logger and Notify for diagnostics and outcomes and Search for task history. Settings, Notify, Action and Search have no declared dependencies.
 
 | `module.Definition` field | Contract |
 | --- | --- |
@@ -33,7 +33,7 @@ All registered built-ins are essential. On error or cancellation during startup,
 
 Each attempted start receives its own scope. Use `scope.Add(func(context.Context) error)` for event unsubscription, action removal, or cancelling and joining a worker. Successful registration transfers responsibility to the scope. If registration is rejected, the caller still owns the resource. Before calling Stop the manager closes that scope to new registrations. It then runs all accepted disposers once in reverse registration order, including after Stop errors. Dependencies retain their resources until their own turn.
 
-Settings binds schemas and observers to scopes. Cleanup removes live registrations and preserves stored overrides for a later activation. Task binds each owner handle to a disposer. It stops accepting work from that handle, signals active tasks, and waits within the shared budget. Other owners continue running. The Workbench uses disposable owner-scoped Menu and Editor Registry entries. Stage 07 will link additional view registrations to the shared Contribution Registry. [Workbench integration](WORKBENCH.md#system-modules)
+Settings binds schemas and observers to scopes. Cleanup removes live registrations and preserves stored overrides for a later activation. Task binds each owner handle to a disposer. It stops accepting work from that handle, signals active tasks, and waits within the shared budget. Other owners continue running. Go action and provider registrations take the producer scope and cancel active calls on disposal. Frontend registries return identity-bound disposers and support removal by owner. Stage 07 can attach these disposers to contribution activation. [Workbench integration](WORKBENCH.md#system-modules)
 
 ## Implemented services
 
@@ -66,7 +66,7 @@ The handler redacts recognized credential keys in attributes and nested values, 
 
 `Publish(owner, Message)` creates a stable ID and stores a timestamped Info, Success, Warning or Error notification with a title and an optional plain-text description. `List`, `MarkRead`, `MarkAllRead`, `Dismiss` and `Clear` operate on the last 100 in-app records. The Workbench shows new publish events as Sonner toasts when enabled. A snapshot restores the center without replaying earlier notifications as toasts. This stage delivers notifications inside the Workbench. The Wails OS notification service can supply an optional delivery route for a future consumer.
 
-Producers can attach references to registered actions. The Stage 05 contract validates the shape and carries references as data. Stage 06 will resolve and authorize these IDs through Action before exposing invocation.
+Producers can attach up to five action references with optional string arguments. The Workbench resolves IDs through Action using the notification owner. The inbox shows missing, disabled and unauthorized actions as unavailable, and each toast can show the first enabled action. Invocation rechecks the reference, context, ownership and arguments. Opening a task from a notification uses the same Tasks action as the View menu and footer. Read, dismiss and clear are independent inbox operations.
 
 ### Task
 
@@ -76,20 +76,25 @@ Producers can attach references to registered actions. The Stage 05 contract val
 
 `Owner.Stop(ctx)` closes the owner immediately and joins its operations within the caller's budget. Owner activation can be reattached after its previous operations release their resources. Shutdown is cooperative. A Go operation that ignores cancellation can continue running after the deadline expires.
 
+### Action
+
+Register an owner-namespaced ID, localized title, optional description, icon, category and shortcut binding. Actions can require context flags and provide availability, enablement and argument validators. The registry exposes lookup, list, invocation, individual disposal and owner cleanup. Duplicate IDs fail registration. Local presentation can resolve titles from live state, as with pane toggles.
+
+A reference carries an ID and an optional string-to-string argument map. Dispatch limits it to 16 keys and 512 UTF-8 bytes per value. An action without a validator accepts no arguments. The trusted Workbench can dispatch a user-selected action directly. Menu, activity, search and notification references carry their producer owner and must match the target owner or an explicit delegate. The Tasks navigation action allows references from any owner so task producers can link to that panel. Go rechecks its action state, context and arguments before running the handler. Cancellation uses the invocation or owner lifetime. Go routes handler failures to Logger with a safe error for the Workbench. The Workbench reports action failures through a Sonner toast. Use Task for long-running operations.
+
+Go producer registration and cleanup stay inside the host. The generated Action facade exposes `List` and `Invoke`. Go metadata carries icon identifiers, localization keys and binding data. Frontend components and executable handlers remain local. [Shortcut routing](WORKBENCH.md#groups-and-keyboard)
+
+### Search
+
+Register an owner-namespaced provider ID, localization key for its label, optional scope, maximum results and timeout. A query handler receives the bounded limit and cancellation context. Results have stable IDs within the provider, titles and optional descriptions, icon and resource references, and action references with data arguments. The registry stamps owner and provider IDs and validates the result envelope. The Action dispatcher validates the target's argument schema when selected.
+
+The Workbench has local Actions, Editors and Settings providers. Settings reuses its dialog filter and opens the matching category. Editor results use the existing Editor Manager. The Go Tasks provider searches the bounded in-memory Task service. Search exposes native provider metadata and one cancellable call per Go provider through generated bindings. The Workbench debounces native queries by 120 ms and merges provider groups as calls complete. Groups sort by provider ID and preserve provider result order. Each group has at most 25 results and the displayed batch has at most 80. A timeout or provider failure affects only its group. Changing the query or closing the dialog aborts existing calls and invalidates the request. Provider removal cancels owned queries. Go providers must observe cancellation to release their own work promptly.
+
 ## Planned contracts
-
-### action
-
-Stage 06 will replace the local menu action resolver and connect the Command Center and palette to the Action and Search modules. The Menubar can keep rendering and selecting registered items through the same action adapter. The Action module checks the requesting owner, permissions, context and arguments at dispatch.
-
-Register namespaced ID, title, optional icon/shortcut, context predicate and handler. Invoke by ID with validated arguments, report unavailable and missing actions. Registry handles duplicate IDs, shortcut conflicts, owner cleanup and cancellation. Native/UI/extension action dispatch share the same semantics; frontend handlers and backend handlers need not share one implementation language. Commands from untrusted UI pass capability checks.
-
-### search
-Register providers with ID, label, optional scope and a cancellable query handler. Aggregate results progressively, bound per-provider count and use timeouts. Result includes owner, stable result ID, title, optional description and a registered action or resource reference. Provider error must not kill global search. No domain indexing or arbitrary query execution in Core. Do not send search queries to remote providers without explicit configured permission.
 
 ### extensions
 Manage package metadata and lifecycle via host facade. Local trusted development install is MVP; network marketplace later. UI reflects installed, disabled, starting, active, failed and incompatible states. It must not imply third-party sandboxing unless implemented and verified.
 
 ## Verification
 
-The focused scenarios in `modules/*/*_test.go` cover settings persistence and recovery, notification publication and dismissal, structured logs, determinate and indeterminate progress, terminal outcomes, cancellation and owner cleanup. `app/modules_test.go` exercises the production registrations and lifecycle. Frontend tests cover snapshot reconciliation, filtering, copy selection, inbox and task updates, and menu ownership. [Stage 05 results](ROADMAP.md#stage-05-verification)
+The focused scenarios in `modules/*/*_test.go` cover settings persistence and recovery, notification publication and dismissal, structured logs, determinate and indeterminate progress, terminal outcomes, cancellation and owner cleanup. `app/modules_test.go` exercises the production registrations and lifecycle. The frontend suites exercise the dispatch contract, scoped keyboard routing, dirty-editor close, catalog synchronization, progressive search and stale response rejection. [Stage 06 results](ROADMAP.md#stage-06-verification)

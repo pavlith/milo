@@ -51,7 +51,7 @@ SDK Go and TypeScript clients expose only supported services and contribution re
 
 ## Menu contributions
 
-The Stage 02 menu registry runs inside the trusted Workbench. Stage 06 will connect items to the Action module. Stage 07 will let the Contribution Registry manage menu declarations and owner cleanup. A future extension can contribute an independent top-level section (for example, Mail), add an item to a built-in section such as File, or add a group with items, separators and submenus. A registration carries an owner-scoped ID, placement, order, label when applicable and an action reference for each item. [Menu Registry](WORKBENCH.md#menu-registry)
+The trusted Workbench Menu Registry uses Action references for menu items. Stage 07 will let the Contribution Registry manage menu declarations and owner cleanup. A future extension can contribute an independent top-level section (for example, Mail), add an item to a built-in section such as File, or add a group with items, separators and submenus. A registration carries an owner-scoped ID, placement, order, label when applicable and an action reference for each item. [Menu Registry](WORKBENCH.md#menu-registry)
 
 The extension host must derive ownership from the authenticated session, validate menu metadata and allowed targets, and remove all owner registrations on deactivation or failed activation. The host must authorize action references at registration and recheck action availability, ownership or allowed delegation, permissions and arguments at dispatch. Visibility, enablement and a menu click provide UI context. Authorization comes from the session's grants and the action policy. The SDK will submit declarative contributions through the host bridge. Privileged action handlers and arbitrary UI callbacks stay in trusted code.
 
@@ -64,6 +64,12 @@ The trusted Workbench exposes a local activity registry for owner-scoped icon en
 Stage 03 has a typed Editor Registry for trusted local Svelte registrations. A type declares its owner-scoped ID, default title and optional icon, lazy loader and singleton or resource behavior. Resource providers describe their opaque references and explicitly enable restoration where supported. Optional editor sessions retain per-instance state and supply save, discard and disposal operations. The Workbench owns grouping, tabs and close confirmation. [Workbench editor contracts](WORKBENCH.md#tab-and-editor-model)
 
 Stage 07 will adapt the shared Contribution Registry to register these types and dispose owner-scoped contributions. During future deactivation, the host can call the manager's protected owner close before removing the owner's registrations. Cancelled close keeps the owner active. Stage 08 will connect separately built UI through the isolated bridge and derive owner identity from the authenticated session.
+
+## Action and search contributions
+
+Stage 06 provides owner-scoped Action and Search registries for trusted Go and Svelte code. Stage 07 can map contribution declarations to these registration APIs and collect their disposers alongside menu, view and editor disposers. Action and provider IDs are stable and namespaced. Removing an owner invalidates references and cancels its active invocations or searches. Search results and notifications carry action IDs and optional arguments. The Action dispatcher checks ownership or explicit delegation and then validates context and arguments.
+
+The future host must derive the owner from its authenticated activation when adapting external declarations. The Stage 06 Wails facades are for the trusted Workbench. They expose catalog reads and dispatch/query calls. Registration happens inside trusted code. Future SDK calls will need capability checks and identity binding at the extension boundary. [Action and Search contracts](MODULES.md#action)
 
 ## UI and security boundary
 
