@@ -27,7 +27,7 @@
         {sideOffset}
         {side}
         class={cn(
-            "bg-foreground text-background z-50 inline-flex w-fit max-w-xs items-center gap-1.5 rounded-md px-3 py-1.5 text-xs has-data-[slot=kbd]:pr-1.5 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm",
+            "bg-popover text-popover-foreground ring-border shadow-md ring-1 z-50 inline-flex w-fit max-w-xs items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs leading-tight has-data-[slot=kbd]:pr-1.5 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm",
             className
         )}
         {...restProps}
@@ -39,7 +39,7 @@
                 <div {...props}>
                     <div
                         class={cn(
-                            "bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%_-_2px)] translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]",
+                            "bg-popover fill-popover z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]",
                             arrowClasses
                         )}
                         data-side={props["data-side"]}
