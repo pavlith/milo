@@ -13,14 +13,14 @@ App Shell
 │       ├── Primary Sidebar
 │       ├── Resizer
 │       └── Workspace
-│           └── Vertical group
-│               ├── Main Area
-│               │   └── Horizontal group
+│           └── Horizontal group
+│               ├── Center column
+│               │   └── Vertical group
 │               │       ├── Editor Area (optional horizontal editor split)
 │               │       ├── Resizer
-│               │       └── Secondary Sidebar
+│               │       └── Bottom Panel
 │               ├── Resizer
-│               └── Bottom Panel
+│               └── Secondary Sidebar
 └── Status Bar
 
 Settings Dialog
@@ -33,16 +33,18 @@ Settings Dialog
 | Header | Milo mark, application menu, Command Center, pane and window controls | Fixed at 36 CSS pixels. Wails owns window operations and system decorations. |
 | Left Sidebar | Activity selection, mock User Space and Settings | Fixed at 48 CSS pixels. Visible and icon-only at every window size. |
 | Primary Sidebar | Context navigation from the selected activity | Starts at 20% of the body group. Open range 12–36%. |
-| Secondary Sidebar | Contextual views | Starts collapsed. First opening uses 22% of the main group. Open range 12–36%. |
+| Secondary Sidebar | Contextual views | Starts collapsed. First opening uses 22% of the workspace width. Open range 12–36%. |
 | Editor Area | Editor tabs, editors and optional split | Always available. The split starts at 50/50 and gives each group at least 25%. |
-| Bottom Panel | Output and Tasks | Starts collapsed. First opening uses 26% of the workspace. Open range 16–60%. |
+| Bottom Panel | Output and Tasks beneath the editor and between the sidebars | Starts collapsed. First opening uses 26% of the workspace. Open range 16–60%. |
 | Status Bar | Editor status, notifications and task progress | Fixed footer. |
 
 ### PaneForge integration
 
-The shadcn-svelte Resizable wrappers use PaneForge for the three nested shell groups and the editor split. Each group and pane has a stable ID. PaneForge owns sizing, pointer and keyboard resizing, and the remembered expanded size. Header, View menu, palette and activity selection use the pane's imperative API. Collapse and expand events update pressed states and make collapsed content inert. The PaneForge 1.0.2 patch records sizes when a divider collapses a pane and sends Enter through the same collapse and expand methods as the Header.
+The Workbench body owns the fixed Activity Bar and the nested PaneForge groups. Each group, pane and divider has a stable ID. PaneForge owns geometry, keyboard step size and the last expanded size. The Header, View menu and palette read the pane's expanded state through PaneForge. These controls and activity selection use the same imperative API to change visibility. The PaneForge 1.0.2 patch records sizes when a divider collapses a pane and sends Enter through the same collapse and expand methods as the Header.
 
 Each group saves its layout and remembered expanded sizes using `autoSaveId` in the WebKit profile. The Sidebar Provider supplies CSS tokens and zero-delay tooltips. Primary width follows its PaneForge parent. [PaneForge persistence](https://paneforge.com/docs/examples/persistent-layouts)
+
+When both sidebars are open, each can use up to half the width left after reserving 360 pixels for the editor and room for the dividers. Widening the window restores the preferred pane widths. Pointer and keyboard resizing start from the displayed width.
 
 ### Sidebar responsibilities
 
@@ -53,6 +55,8 @@ The Activity Bar follows the fixed icon sidebar from `sidebar-09` and the conten
 Milo uses Wails 3.1 frameless mode on Linux. Empty Header space uses Wails drag regions, and the menu, Command Center and buttons opt out of dragging. A double-click on empty Header space toggles maximize/restore. The window buttons call the Wails runtime for minimize, maximize/restore and close. The maximize button reads the initial native state and follows Wails window events, including changes from the window manager. Wails handles edge resize and the host sets a minimum window size of 720 × 480. Launch with `MILO_NATIVE_TITLEBAR=1` to use system decorations on Linux. Other platforms use system decorations by default. The Workbench Header stays available with system decorations and in browser previews. [Wails frameless windows](https://v3.wails.io/features/windows/frameless/)
 
 The Command Center opens the existing local palette and displays its shortcut. Stage 06 adds the Action and Search modules and connects them to the palette. File opens the palette and can quit the native app. Edit opens Settings. View controls the three panes and exposes editor operations, including split, navigation, focus and close. It also opens Output, Tasks and the Notification Center. Help opens Welcome. Menubar supports keyboard navigation and View exposes each pane's open state as a checkmark.
+
+The Command Center, pane controls and window controls share a zero-delay tooltip. Button hover states and menu opening use immediate visual feedback.
 
 ## Menu Registry
 
@@ -88,7 +92,7 @@ One shadcn-svelte Alert Dialog handles individual, bulk, group, owner and applic
 
 ### Groups and keyboard
 
-**Split Editor Right** creates or focuses a right group and opens the current resource there as a separate instance when possible. Singleton tabs can be moved to the right group. Drag tabs along or between the tab bars, or use the context menu for keyboard-accessible reorder and move actions. Moving preserves identity, pins and drafts. A moved preview becomes permanent if the destination already has a preview. The split resizer supports pointer and keyboard input. **Close Editor Group** returns to a single group. With one group, closing its last tab leaves a usable empty editor area.
+**Split Editor Right** creates or focuses a right group and opens the current resource there as a separate instance when possible. Singleton tabs can be moved to the right group. Drag tabs along or between the tab bars, or use the context menu for keyboard-accessible reorder and move actions. Moving preserves identity, pins and drafts. A moved preview becomes permanent if the destination already has a preview. The split resizer supports pointer and keyboard input. **Close Editor Group** returns to a single group. The first PaneForge pane stays mounted when the second pane and its divider appear or disappear. With one group, closing its last tab leaves a usable empty editor area.
 
 | Shortcut | Operation |
 | --- | --- |
@@ -114,7 +118,7 @@ The snapshot contains metadata only. Dirty state, draft text, saved demo text, r
 - **Tasks** shows active progress, supported cancellations and recent outcomes. If any active operation has indeterminate progress, the footer shows an indeterminate aggregate. Otherwise it shows the average across active tasks. Clicking the indicator opens Tasks. The Cancel control signals Go and shows Cancelling until execution finishes.
 - **Notifications** opens from the footer bell or View. The footer count tracks unread entries. The center marks one or all as read, dismisses individual entries, and clears the in-app history. Toasts and the center use the same Go projection.
 
-Output and Tasks use shadcn-svelte Tabs. The header has the tab list on the left and the active view's actions on the right. The active content fills the width below the header and scrolls within the pane. Collapsing the pane keeps the selected tab, filters and running tasks available. System menu entries use the owner-scoped Menu Registry and local command adapter. [Module APIs](MODULES.md#implemented-services)
+Output and Tasks use shadcn-svelte Tabs. The header has the tab list on the left. In Output, the level and owner selectors and text filter precede the Copy button. At narrow widths the Output controls can wrap below the tabs. The active content fills the width below the header and scrolls within the pane. The tab views mount on the first expansion and stay mounted when the panel closes. The collapsed panel skips layout and Output auto-scroll, and keeps the selected tab and filters. Go tasks continue running. System menu entries use the owner-scoped Menu Registry and local command adapter. [Module APIs](MODULES.md#implemented-services)
 
 ## Activity contributions
 

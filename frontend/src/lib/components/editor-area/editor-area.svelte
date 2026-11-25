@@ -36,16 +36,22 @@
     />
 {/snippet}
 
-{#if workspace.groups.length === 2}
-    <ResizablePaneGroup id={groupId} autoSaveId={groupId} direction="horizontal" onLayoutChange={initialize}>
-        <ResizablePane bind:this={left} id="editor-left" order={1} defaultSize={50} minSize={splitMinSize}>
-            {@render editorGroup(workspace.groups[0], 0)}
-        </ResizablePane>
-        <ResizableHandle class="hover:bg-ring" aria-label={$t("workbench.editor.resizeGroups")} data-editor-resizer />
+<ResizablePaneGroup
+    id={groupId}
+    autoSaveId={workspace.groups.length === 2 ? groupId : null}
+    direction="horizontal"
+    keyboardResizeBy={2}
+    onLayoutChange={(sizes) => {
+        if (sizes.length === 2) initialize();
+    }}
+>
+    <ResizablePane bind:this={left} id="editor-left" order={1} defaultSize={50} minSize={splitMinSize}>
+        {@render editorGroup(workspace.groups[0], 0)}
+    </ResizablePane>
+    {#if workspace.groups[1]}
+        <ResizableHandle id="resize-editor" aria-label={$t("workbench.editor.resizeGroups")} data-editor-resizer />
         <ResizablePane id="editor-right" order={2} defaultSize={50} minSize={splitMinSize}>
             {@render editorGroup(workspace.groups[1], 1)}
         </ResizablePane>
-    </ResizablePaneGroup>
-{:else}
-    {@render editorGroup(workspace.groups[0], 0)}
-{/if}
+    {/if}
+</ResizablePaneGroup>

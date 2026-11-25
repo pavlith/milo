@@ -9,7 +9,9 @@
     import { copyText, fieldsText, filterLogs, levels, logTime, severityClass, type LogLevel } from "./records";
     import { loggerAPI, output } from "./state";
 
-    let { actions }: { actions?: HTMLElement } = $props();
+    let { toolbar, visible: viewVisible }: { toolbar?: HTMLElement; visible: boolean } = $props();
+    const selectClass =
+        "border-input bg-background h-7 w-16 shrink-0 rounded border px-1 text-xs @sm/output-panel:w-19 @lg/output-panel:w-24";
     let level = $state<LogLevel>("");
     let owner = $state("");
     let query = $state("");
@@ -28,7 +30,7 @@
 
     $effect(() => {
         const element = list;
-        if (element && autoScroll && visible.length) {
+        if (viewVisible && element && autoScroll && visible.length) {
             void tick().then(() => (element.scrollTop = element.scrollHeight));
         }
     });
@@ -54,38 +56,6 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col">
-    <div class="flex shrink-0 flex-wrap items-center gap-2 border-b px-2 py-1">
-        <select
-            aria-label={$t("output.level")}
-            bind:value={level}
-            class="border-input bg-background h-7 rounded border px-1.5 text-xs"
-        >
-            <option value="">{$t("output.allLevels")}</option>
-            {#each levels as item (item)}
-                <option value={item}>{$t("settings.option." + item)}</option>
-            {/each}
-        </select>
-        <select
-            aria-label={$t("output.owner")}
-            bind:value={owner}
-            class="border-input bg-background h-7 max-w-36 rounded border px-1.5 text-xs"
-        >
-            <option value="">{$t("output.allOwners")}</option>
-            {#if owner && !owners.includes(owner)}<option value={owner}>{owner}</option>{/if}
-            {#each owners as item (item)}<option value={item}>{item}</option>{/each}
-        </select>
-        <Input
-            bind:value={query}
-            type="search"
-            class="h-7 min-w-32 flex-1 text-xs"
-            aria-label={$t("output.filter")}
-            placeholder={$t("output.filter")}
-        />
-        <label class="flex items-center gap-1 text-xs">
-            <input type="checkbox" bind:checked={autoScroll} />
-            {$t("output.autoScroll")}
-        </label>
-    </div>
     {#if error}<p class="text-destructive px-2 py-1 text-xs" role="alert">{error}</p>{/if}
     <div bind:this={list} class="min-h-0 flex-1 overflow-auto">
         {#if $output.status === "loading"}
@@ -121,27 +91,51 @@
     </div>
 </div>
 
-{#if actions}
-    <Portal to={actions}>
-        <Button
-            size="icon-xs"
-            variant="ghost"
-            disabled={!visible.length}
-            onclick={copy}
-            title={$t("output.copy")}
-            aria-label={$t("output.copy")}
-        >
-            <Copy />
-        </Button>
-        <Button
-            size="icon-xs"
-            variant="ghost"
-            disabled={!records.length}
-            onclick={clear}
-            title={$t("output.clear")}
-            aria-label={$t("output.clear")}
-        >
-            <Trash2 />
-        </Button>
+{#if toolbar}
+    <Portal to={toolbar}>
+        <div class="flex min-w-0 items-center gap-1">
+            <select aria-label={$t("output.level")} bind:value={level} class={selectClass}>
+                <option value="">{$t("output.allLevels")}</option>
+                {#each levels as item (item)}
+                    <option value={item}>{$t("settings.option." + item)}</option>
+                {/each}
+            </select>
+            <select aria-label={$t("output.owner")} bind:value={owner} class={selectClass}>
+                <option value="">{$t("output.allOwners")}</option>
+                {#if owner && !owners.includes(owner)}<option value={owner}>{owner}</option>{/if}
+                {#each owners as item (item)}<option value={item}>{item}</option>{/each}
+            </select>
+            <Input
+                bind:value={query}
+                type="search"
+                class="h-7 min-w-8 flex-1 text-xs"
+                aria-label={$t("output.filter")}
+                placeholder={$t("output.filter")}
+            />
+            <Button
+                size="icon-xs"
+                variant="ghost"
+                disabled={!visible.length}
+                onclick={copy}
+                title={$t("output.copy")}
+                aria-label={$t("output.copy")}
+            >
+                <Copy />
+            </Button>
+            <Button
+                size="icon-xs"
+                variant="ghost"
+                disabled={!records.length}
+                onclick={clear}
+                title={$t("output.clear")}
+                aria-label={$t("output.clear")}
+            >
+                <Trash2 />
+            </Button>
+            <label class="flex shrink-0 items-center gap-1 text-xs" title={$t("output.autoScroll")}>
+                <input type="checkbox" bind:checked={autoScroll} />
+                <span class="sr-only @xl/output-panel:not-sr-only">{$t("output.autoScroll")}</span>
+            </label>
+        </div>
     </Portal>
 {/if}

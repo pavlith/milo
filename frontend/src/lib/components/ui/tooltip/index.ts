@@ -1,3 +1,4 @@
+import { Tooltip as TooltipPrimitive } from "bits-ui";
 import Content from "./tooltip-content.svelte";
 import Portal from "./tooltip-portal.svelte";
 import Provider from "./tooltip-provider.svelte";
@@ -17,3 +18,4 @@ export {
     Trigger as TooltipTrigger,
     Trigger,
 };
+export const createTether = TooltipPrimitive.createTether;

@@ -52,6 +52,7 @@
 
 <Dialog.Root bind:open>
     <Dialog.Content
+        animated={false}
         class="h-[min(34rem,calc(100dvh-2rem))] max-w-[min(48rem,calc(100vw-2rem))] overflow-hidden p-0 sm:max-w-[min(48rem,calc(100vw-2rem))]"
     >
         <Dialog.Description class="sr-only">{$t("settings.description")}</Dialog.Description>

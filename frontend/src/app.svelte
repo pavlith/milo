@@ -2,10 +2,8 @@
     import { activityRegistry, type Activity } from "$lib/activities";
     import AppMenu from "$lib/components/app-menu.svelte";
     import Command, { type WorkbenchCommand } from "$lib/components/command.svelte";
-    import Content from "$lib/components/content.svelte";
     import CloseDialog, { EditorCloseDialog } from "$lib/components/editor-area/close-dialog.svelte";
-    import LeftSidebar from "$lib/components/left-sidebar.svelte";
-    import * as Sidebar from "$lib/components/ui/sidebar";
+    import WorkbenchLayout from "$lib/components/workbench-layout.svelte";
     import WorkbenchHeader, { paneIcons } from "$lib/components/workbench-header.svelte";
     import { connectDesktop, type DesktopRuntime } from "$lib/desktop";
     import { registerBuiltinEditors } from "$lib/editors/builtins";
@@ -35,9 +33,8 @@
     const dialog = new EditorCloseDialog();
     const manager = new EditorManager(registry, initial.editor, dialog);
 
-    const openRegions = $state({ primary: false, panel: false, secondary: false });
     let editor = $state.raw(manager.state);
-    let content: ReturnType<typeof Content> | undefined = $state();
+    let layout: ReturnType<typeof WorkbenchLayout> | undefined = $state();
     let paletteOpen = $state(false);
     let settingsOpen = $state(false);
     const openSettings = () => (settingsOpen = true);
@@ -74,7 +71,7 @@
                 title: "task.title",
                 icon: ListTodo,
                 run: () => showPanel("tasks"),
-                isActive: () => openRegions.panel && panelView === "tasks",
+                isActive: () => isRegionOpen("panel") && panelView === "tasks",
             },
         ],
     });
@@ -83,19 +80,18 @@
     let activity = $derived($activities.find(({ id }) => id === selectedActivityId) ?? $activities[0]);
     const selectActivity = (selected: Activity) => {
         selectedActivityId = selected.id;
-        if (selected.navigation.length) content?.setOpen("primary", true);
+        if (selected.navigation.length) layout?.setOpen("primary", true);
     };
 
     const open = (id: string) => {
         const choice = choiceById.get(id);
         if (choice) manager.open(choice);
     };
-    const toggleRegion = (region: ResizableRegion) => {
-        content?.setOpen(region, !openRegions[region]);
-    };
+    const isRegionOpen = (region: ResizableRegion) => layout?.isOpen(region) ?? false;
+    const toggleRegion = (region: ResizableRegion) => layout?.toggle(region);
     const showPanel = (view: "output" | "tasks") => {
         panelView = view;
-        content?.setOpen("panel", true);
+        layout?.setOpen("panel", true);
     };
     const openPalette = () => (paletteOpen = true);
     const actions = editorActions(
@@ -113,7 +109,7 @@
             void desktop?.Application.Quit().catch((error: unknown) => console.error("Could not quit Milo", error)),
         isDesktop: () => !!desktop,
         toggle: toggleRegion,
-        isOpen: (region) => openRegions[region],
+        isOpen: isRegionOpen,
     });
 
     const systemMenu = registerSystemMenu(menu, {
@@ -172,7 +168,7 @@
         ...resizableRegions.map((region) => ({
             id: "toggle." + region,
             label: $t(
-                openRegions[region] ? "workbench.command.hide" : "workbench.command.show",
+                isRegionOpen(region) ? "workbench.command.hide" : "workbench.command.show",
                 $t("workbench." + region)
             ),
             icon: paneIcons[region],
@@ -192,7 +188,7 @@
     {desktop}
     {customTitlebar}
     {openPalette}
-    {openRegions}
+    {isRegionOpen}
     {toggleRegion}
     paletteShortcut={formatShortcut(paletteBinding)}
 >
@@ -201,22 +197,20 @@
     {/snippet}
 </WorkbenchHeader>
 
-<Sidebar.Provider class="flex-1">
-    <LeftSidebar activities={$activities} activeId={activity?.id} select={selectActivity} {openSettings} />
-    <Content
-        bind:this={content}
-        initialPanes={initial.panes}
-        legacySplitSize={initial.legacySplitSize}
-        {openRegions}
-        {activity}
-        {manager}
-        {editor}
-        {choices}
-        onvisibilitychange={(region, open) => (openRegions[region] = open)}
-    >
-        {#snippet panel()}<SystemPanel bind:view={panelView} />{/snippet}
-    </Content>
-</Sidebar.Provider>
+<WorkbenchLayout
+    bind:this={layout}
+    initialPanes={initial.panes}
+    legacySplitSize={initial.legacySplitSize}
+    activities={$activities}
+    {activity}
+    {selectActivity}
+    {openSettings}
+    {manager}
+    {editor}
+    {choices}
+>
+    {#snippet panel(open)}<SystemPanel bind:view={panelView} {open} />{/snippet}
+</WorkbenchLayout>
 
 <SystemFooter
     title={active ? $t(active.title) : $t("pane.empty.title")}

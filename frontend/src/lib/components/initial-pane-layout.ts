@@ -6,14 +6,18 @@ import { tick } from "svelte";
 export function initialPaneLayout(
     group: string,
     pane: () => ReturnType<typeof Pane> | undefined,
-    preference: { size: number; open: boolean }
+    preference: { size: number; open: boolean },
+    onReady?: () => void
 ) {
     let initialized = false;
     return () => {
         if (initialized) return;
         initialized = true;
         try {
-            if (localStorage.getItem(`paneforge:${group}`) !== null) return;
+            if (localStorage.getItem(`paneforge:${group}`) !== null) {
+                onReady?.();
+                return;
+            }
         } catch {
             // The pane can still be initialized when storage is unavailable.
         }
@@ -21,6 +25,7 @@ export function initialPaneLayout(
             const current = pane();
             current?.resize(preference.size);
             if (!preference.open) current?.collapse();
+            onReady?.();
         });
     };
 }

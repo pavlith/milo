@@ -4,7 +4,6 @@
     import type { MenuRegistry, ResolveMenuAction } from "$lib/menu";
 
     let { menu, resolve }: { menu: MenuRegistry; resolve: ResolveMenuAction } = $props();
-    const popup = "rounded-sm data-open:animate-none data-closed:animate-none";
 </script>
 
 {#snippet entries(parent: string)}
@@ -43,7 +42,7 @@
             {:else if entry.kind === "submenu"}
                 <Menubar.Sub>
                     <Menubar.SubTrigger disabled={!menu.isEnabled(entry)}>{$t(entry.label)}</Menubar.SubTrigger>
-                    <Menubar.SubContent class={popup}>
+                    <Menubar.SubContent class="rounded-sm">
                         {@render entries(entry.id)}
                     </Menubar.SubContent>
                 </Menubar.Sub>
@@ -62,7 +61,7 @@
                 >
                     {$t(section.label)}
                 </Menubar.Trigger>
-                <Menubar.Content class={popup} sideOffset={4} alignOffset={0}>
+                <Menubar.Content class="rounded-sm" sideOffset={4} alignOffset={0}>
                     {@render entries(section.id)}
                 </Menubar.Content>
             </Menubar.Menu>
